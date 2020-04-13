@@ -29,7 +29,8 @@ Function Global:prompt {
         Prompt_NewLine
         Prompt_DBG
         Prompt_ADM
-        Prompt_Versioning
+        Encapture-Word -word (get-history).count -color1 Gray yellow
+        # Prompt_Versioning
         Prompt_NestedLevel "$(Prompt_BoolLastCommand Cyan Red)"
         #$PPend = get-date # EXTRA
         #([int]($PPend - $PPstart).TotalMilliseconds).ToString() # EXTRA
