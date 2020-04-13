@@ -16,8 +16,8 @@ Function Global:prompt {
         #if ( !( Get-Command Prompt_BoolLastCommand -ea ignore ) ) {}
     }
     Process {
-        $PPstart = get-date # används nu på flera ställen i scriptet där get-date används
         Prompt_SetLastRunCommand
+        $PPstart = get-date # används nu på flera ställen i scriptet där get-date används
     
         Prompt_SessionStart
         Prompt_Provider
@@ -29,7 +29,7 @@ Function Global:prompt {
         Prompt_NewLine
         Prompt_DBG
         Prompt_ADM
-        Encapture-Word -word (get-history).count -color1 Gray yellow
+        Encapture-Word -word (get-history).count -color1 "$(Prompt_BoolLastCommand Green Red)" yellow
         # Prompt_Versioning
         Prompt_NestedLevel "$(Prompt_BoolLastCommand Cyan Red)"
         #$PPend = get-date # EXTRA
