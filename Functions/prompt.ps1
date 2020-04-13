@@ -7,10 +7,12 @@ Function Global:prompt {
     .Synopsis
         Made a cooler prompt
     .DESCRIPTION
-        Created a prompt with more features on it, might require some more time.. 
+        Created a prompt with more features on it, might require some more time..
+        Old version:
         PS v. 5.1 Console takes avg. 15ms
         PS v. 5.1 ISE takes avg. 86ms
         PS v. 7.0 Console takes avg. 17ms
+        New Version.... unknown, but should take more time as PersistentData is revampt to do more things(but less searching)
     #>
     Begin {
         #if ( !( Get-Command Prompt_BoolLastCommand -ea ignore ) ) {}
@@ -19,17 +21,19 @@ Function Global:prompt {
         Prompt_SetLastRunCommand
         $PPstart = get-date # används nu på flera ställen i scriptet där get-date används
     
-        Prompt_SessionStart
+        
         Prompt_Provider
         Prompt_ColorizePWD
         Prompt_Seperator
         Prompt_time
         Prompt_Seperator
+        Prompt_SessionStart
+        Prompt_Seperator
         Prompt_SessionOnline
         Prompt_NewLine
         Prompt_DBG
         Prompt_ADM
-        Encapture-Word -word (get-history).count -color1 "$(Prompt_BoolLastCommand Green Red)" yellow
+        Encapture-Word -word (get-history).count -color1 (Prompt_BoolLastCommand Green Red) yellow
         # Prompt_Versioning
         Prompt_NestedLevel "$(Prompt_BoolLastCommand Cyan Red)"
         #$PPend = get-date # EXTRA
