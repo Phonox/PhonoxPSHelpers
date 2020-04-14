@@ -13,6 +13,10 @@ Function Global:prompt {
         PS v. 5.1 ISE takes avg. 86ms
         PS v. 7.0 Console takes avg. 17ms
         New Version.... unknown, but should take more time as PersistentData is revampt to do more things(but less searching)
+        New version has (get-history).Count in the prompt as well
+        PS v. 5.1 Console avg time 12ms (but every 5, it took 25ms)
+        PS v. 5.1 ISE     avg time 18-25ms
+        PS v. 7.0 Console avg time 13ms
     #>
     Begin {
         #if ( !( Get-Command Prompt_BoolLastCommand -ea ignore ) ) {}
@@ -53,7 +57,6 @@ function Prompt_NewDay{
         Set-PersistentData BeenAtIt $day
     }else {
         if ($BeenAtIt.count -gt $keep) {
-        #$keep = 100
             Set-PersistentData -Subtract BeenAtIt $beenAtIt[0]
         }
         Set-PersistentData -Add BeenAtIt $day

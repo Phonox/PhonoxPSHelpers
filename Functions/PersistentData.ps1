@@ -24,8 +24,13 @@ Function Get-PersistentData {
     }
     Process{
         if ($first -ne $Vault) {
+            $start = Get-date
             if ( !(Test-Path $path) ) {Write-Warning "File Missing! $Path" ; New-PersistentDataFile $Path -Confirm:$true }
-            $List = @( Get-Content $Path -Raw -Encoding $Encoding | ConvertFrom-Json -EA Continue) -as [System.Collections.ArrayList] | %{ if ($_.Scope -match "\w") { $_ } else {Throw "File is incomparable" } }
+            #$List = @( Get-Content $Path -Raw -Encoding $Encoding | ConvertFrom-Json -EA Continue) -as [System.Collections.ArrayList] | 
+            $List = @( Get-Content $Path -Raw -Encoding $Encoding | ConvertFrom-Json -EA Continue) | 
+            %{ 
+                if ($_.Scope -match "\w") { $_ } else {Throw "File is incomparable" } 
+            }
             if ( !($List |gm -MemberType NoteProperty).count -gt 1 ) {
                 Write-Error -ErrorAction Stop "Failed to import $Path"
             }
@@ -49,7 +54,7 @@ Function Get-PersistentData {
             $Props = ( $list |gm -MemberType NoteProperty -ErrorAction Stop ) -as [PSCustomObject] |select -expand Name
             $Script:PDSettings.Data.$Vault = @{}
             $first = $Vault
-        } 
+        }
         foreach ( $obj in $list ) {
             $Script:PDSettings.Data.$Vault.($obj.Name) = @{}
             foreach ( $prop in ($props -ne "Name") ) {
@@ -62,20 +67,29 @@ Function Get-PersistentData {
         }
     }
     End {
+        $end = Get-date
+        Write-Verbose "Get-PersistentData took: $([int]($end - $start).TotalMilliseconds)"
         Write-Verbose "End of Get-PersistentData"
     }
 }
 Function New-PersistentDataFile {
     [CmdletBinding(SupportsShouldProcess,ConfirmImpact="High")]
     Param([String]$Path)
-    Begin{}
+    Begin{
+        $start = Get-Date
+        Write-Verbose "Start of New-PersistentDataFile"
+    }
     Process{
         if ( $PSCmdlet.ShouldProcess( $Path,"Create new file for PersistentData" ) ){
             $json = @{Name="PDVersion";Value=1;Type="INT";Scope="Local"}
             $json | ConvertTo-Json | Out-File $Path -Force -Encoding $Encoding -Confirm:$false
         }
     }
-    End{}
+    End{
+        $end = Get-date
+        Write-Verbose "New-PersistentDataFile took: $([int]($end - $start).TotalMilliseconds)"
+        Write-Verbose "End of New-PersistentDataFile"
+    }
 }
 
 Function Set-PersistentData {
@@ -162,6 +176,7 @@ Function Set-PersistentData {
     Begin {
         Write-Verbose "Start of Set-PersistentData"
         $First = $null
+        $Start = Get-Date
     }
     Process{
         if ($First -ne $Vault) {
@@ -258,6 +273,8 @@ Function Set-PersistentData {
         if ($Update) {
             Write-PersistentData -Data $Script:PDSettings.Data.$Vault -Path $Path -Vault $vault
         }
+        $end = Get-date
+        Write-Verbose "Set-PersistentData took: $([int]($end - $start).TotalMilliseconds)"
         Write-Verbose "End of Set-PersistentData"
     }
 }
@@ -276,10 +293,15 @@ Function Write-PersistentData {
     Begin {
         Write-Verbose "Start of Write-PersistentData"
         #$First = $true
-        $list = [System.Collections.ArrayList]@()
+        $start = Get-date
+        $first = $null
     }
     Process{
         # Rewrite hash to list
+        if ($first -ne $vault) {
+            $list = [System.Collections.ArrayList]@()
+            $first = $Vault
+        }
         foreach ($Key in $data.Keys) {
             $Props = $data.$Key.Keys
             $hash = @{}
@@ -288,12 +310,14 @@ Function Write-PersistentData {
             }
             $hash.Name = $Key
             $list.add([PSCustomObject]$hash) |Out-Null
-            $Script:PDSettings.Vault.$Vault.List = $list
         }
+        $Script:PDSettings.Vault.$Vault.List = $list
 
         Out-File -FilePath $path -Encoding $Encoding -Force -InputObject ($list|ConvertTo-Json)
     }
     End{
+        $end = Get-date
+        Write-Verbose "Write-PersistentData took: $([int]($end - $start).TotalMilliseconds)"
         Write-Verbose "End of Write-PersistentData"
     }
 }
@@ -330,10 +354,11 @@ Function Update-PersistentData {
         $first = $null
     }
     Process {
-        if ($first -ne $Vault) {
+        #if ($first -ne $Vault) { # Takes avg 4 ms
+            $Start = Get-date
             Get-PersistentData $Path $Vault
             $first = $Vault
-        }
+        #}
         # Update all values
         foreach ($Key in $Script:PDSettings.Data.$Vault.Keys) {
             $hash = $Script:PDSettings.Data.$Vault.$Key
@@ -354,6 +379,8 @@ Function Update-PersistentData {
         } # End of update
     }
     END{
+        $end = Get-date
+        Write-Verbose "Update-PersistentData took: $([int]($end - $start).TotalMilliseconds)"
         Write-Verbose "End of Update-PersistentData"
     }
 }
@@ -370,7 +397,10 @@ Function Show-PersistentData {
         [switch]
         $AllListsAndAllData
     )
-    Begin{}
+    Begin{
+        $Start = Get-Date
+        Write-Verbose "Start of Show-PersistentData"
+    }
     Process {
         if($AllLists){$Script:PDSettings.Vault.Keys}
         elseif($AllListsAndAllData){
@@ -381,7 +411,11 @@ Function Show-PersistentData {
             $Script:PDSettings.Vault.$Vault.List
         }
     }
-    End {}
+    End {
+        $end = Get-date
+        Write-Verbose "Show-PersistentData took: $([int]($end - $start).TotalMilliseconds)"
+        Write-Verbose "End of Show-PersistentData"
+    }
 }
 
 
@@ -415,10 +449,19 @@ Function Remove-PersistentData {
         [ValidateNotNullOrEmpty()]
         [string[]]$Name
     )
+    Begin{
+        $Start = Get-Date
+        Write-Verbose "Start of Remove-PersistentData"
+    }
     Process {
         Foreach ($Nam in $name) {
             Set-PersistentData -Remove -Name $Nam
         }
+    }
+    End{
+        $end = Get-date
+        Write-Verbose "Remove-PersistentData took: $([int]($end - $start).TotalMilliseconds)"
+        Write-Verbose "End of Remove-PersistentData"
     }
 }
 
@@ -448,7 +491,7 @@ End{}
 }
 
 # Update all variables
-Update-PersistentData
+Update-PersistentData -Verbose
 if ($Script:PDSettings.Data.$PDDefaultVault.StartWatcher.Value) {
     if ($Script:PDSettings.Data.$PDDefaultVault.StartWatcherQuiet.Value){
         @($Script:PDSettings.Data.$PDDefaultVault.StartWatcher.Value) | % { Set-PersistentData -StartWatcher -Path $_ -Quiet}
