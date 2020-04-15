@@ -1,6 +1,16 @@
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $sut = (Split-Path -Leaf $MyInvocation.MyCommand.Path) -replace '\.Tests\.', '.'
 #. "$here\$sut"
+
+Remove-Module PhonoxsPSHelpers -Force ; Import-Module .\OneDrive\Development\Powershell\PhonoxsPSHelpers -DisableNameChecking
+
+$num = 20 # 59 is about the maximum
+[int](measure-command { 0..$num| % { prompt } } |select -ExpandProperty Milliseconds ) / ($num + 1)
+[int](measure-command { 0..$num| % { Update-PersistentData } } |select -ExpandProperty Milliseconds ) / ($num + 1)
+[int](measure-command { 0..$num| % { Set-PersistentData kalas "$_"} } |select -ExpandProperty Milliseconds ) / ($num + 1)
+
+
+
 $pathBigBagOfShit = "$env:TEMP\bigbagofshit.csv"
 Describe "PersistentData" {
     It "BigBagOfShit.csv should exist"{
