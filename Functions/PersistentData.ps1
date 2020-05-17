@@ -19,39 +19,46 @@ Function Get-PersistentData {
         $Vault = $PDDefaultVault
     )
     Begin {
-        Write-Verbose "Start of Get-PersistentData"
+        $Verbose = $PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent
+        if ($Verbose) {$start = [DateTime]::Now
+            Write-Verbose "Start of Get-PersistentData"
+        }
         $First = $null
     }
     Process{
         if ($first -ne $Vault) {
-            $start = Get-date
+            #$date = ([DateTime]::now).AddMilliseconds(25)
+            #until ( (Test-Path $path) -or $Date -lt ([DateTime]::now)) { } # just wait
+
             if ( !(Test-Path $path) ) {Write-Warning "File Missing! $Path" ; New-PersistentDataFile $Path -Confirm:$true }
             #$List = @( Get-Content $Path -Raw -Encoding $Encoding | ConvertFrom-Json -EA Continue) -as [System.Collections.ArrayList] | 
             $List = @( Get-Content $Path -Raw -Encoding $Encoding | ConvertFrom-Json -EA Continue) | 
-            %{ 
+            %{
                 if ($_.Scope -match "\w") { $_ } else {Throw "File is incomparable" } 
             }
-            if ( !($List |gm -MemberType NoteProperty).count -gt 1 ) {
+            if ( !($List |gm -MemberType NoteProperty -ea SilentlyContinue).count -gt 1 ) {
                 Write-Error -ErrorAction Stop "Failed to import $Path"
             }
             
-            if (!$Script:PDSettings -or $Script:PDSettings.GetType().ToString() -ne "HashTable") {
+            if ( !$list -or !$Script:PDSettings -or $Script:PDSettings.GetType().ToString() -ne "HashTable") {
                 $Script:PDSettings = @{}
             }
 
-            if (!$Script:PDSettings.Vault -or $Script:PDSettings.Vault.GetType().ToString() -ne "HashTable") {
+            if ( !$list -or !$Script:PDSettings.Vault -or $Script:PDSettings.Vault.GetType().ToString() -ne "HashTable") {
                 $Script:PDSettings.Vault = @{}
             }
-            if (!$Script:PDSettings.Data -or $Script:PDSettings.Data.GetType().ToString() -ne "HashTable") {
+            if ( !$list -or !$Script:PDSettings.Data -or $Script:PDSettings.Data.GetType().ToString() -ne "HashTable") {
                 $Script:PDSettings.Data = @{}
             }
 
-            if (!$Script:PDSettings.Vault.$Vault -or $Script:PDSettings.Vault.$Vault.GetType().ToString() -ne "HashTable") {
+            if ( !$list -or !$Script:PDSettings.Vault.$Vault -or $Script:PDSettings.Vault.$Vault.GetType().ToString() -ne "HashTable") {
                 $Script:PDSettings.Vault.$Vault = @{}
             }
             $Script:PDSettings.Data.$Vault = @{}
             $Script:PDSettings.Vault.$Vault.List = $list
-            $Props = ( $list |gm -MemberType NoteProperty -ErrorAction Stop ) -as [PSCustomObject] |select -expand Name
+            if ($list) {
+                $Props = ( $list |gm -MemberType NoteProperty -ErrorAction Stop ) -as [PSCustomObject] |select -expand Name
+            }
             $Script:PDSettings.Data.$Vault = @{}
             $first = $Vault
         }
@@ -67,17 +74,20 @@ Function Get-PersistentData {
         }
     }
     End {
-        $end = Get-date
-        Write-Verbose "Get-PersistentData took: $([int]($end - $start).TotalMilliseconds)"
-        Write-Verbose "End of Get-PersistentData"
+        if ($Verbose) {$end = [DateTime]::Now
+            Write-Verbose "Get-PersistentData took: $([int]($end - $start).TotalMilliseconds) ms"
+            Write-Verbose "End of Get-PersistentData"
+        }
     }
 }
 Function New-PersistentDataFile {
     [CmdletBinding(SupportsShouldProcess,ConfirmImpact="High")]
     Param([String]$Path)
     Begin{
-        $start = Get-Date
-        Write-Verbose "Start of New-PersistentDataFile"
+        $Verbose = $PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent
+        if ($Verbose) {$start = [DateTime]::Now
+            Write-Verbose "Start of New-PersistentDataFile"
+        }
     }
     Process{
         if ( $PSCmdlet.ShouldProcess( $Path,"Create new file for PersistentData" ) ){
@@ -86,9 +96,10 @@ Function New-PersistentDataFile {
         }
     }
     End{
-        $end = Get-date
-        Write-Verbose "New-PersistentDataFile took: $([int]($end - $start).TotalMilliseconds)"
-        Write-Verbose "End of New-PersistentDataFile"
+        if ($Verbose) { $end = [DateTime]::Now
+            Write-Verbose "New-PersistentDataFile took: $([int]($end - $start).TotalMilliseconds) ms"
+            Write-Verbose "End of New-PersistentDataFile"
+        }
     }
 }
 
@@ -174,15 +185,19 @@ Function Set-PersistentData {
         [switch]$Quiet
     )
     Begin {
-        Write-Verbose "Start of Set-PersistentData"
+        $Verbose = $PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent
+        if ($Verbose) {$start = [DateTime]::Now
+            Write-Verbose "Start of Set-PersistentData"
+        }
         $First = $null
-        $Start = Get-Date
+        
     }
     Process{
         if ($First -ne $Vault) {
             Update-PersistentData -Vault $Vault -Path $Path
             $First = $Vault
             $Update = $false
+            #Set-PersistentData PIDWrote $PID
         }
         switch ($PsCmdlet.ParameterSetName) {
             "Change"    {
@@ -204,16 +219,18 @@ Function Set-PersistentData {
                     }
                     $Script:PDSettings.Data.$Vault.$Name.Scope = $Scope
                     $update = $true
+                    Set-Variable -Name $Name -Value $Script:PDSettings.Data.$Vault.$Name.Value -Scope $Scope
                 }else{
                     #Add it
+                    Set-Variable -Name $Name -Value $Script:PDSettings.Data.$Vault.$Name.Value -Scope $Scope
                 }
             }
             "Watcher"   {
                 if (! (Get-EventSubscriber | ? EventName -eq "Changed") ) { #quickfix
                     if (!$Quiet) { 
-                        Register-Watcher -folder (Split-Path $Path -Parent) -Filter (Split-Path $path -Leaf) -ActionChanged ([scriptblock]::Create("Update-PersistentData")) -Quiet |out-null }
-                    else {
-                        Register-Watcher -folder (Split-Path $Path -Parent) -Filter (Split-Path $path -Leaf) -ActionChanged ([scriptblock]::Create("Update-PersistentData -verbose")) | Out-Null
+                        Register-Watcher -folder (Split-Path $Path -Parent) -Filter (Split-Path $path -Leaf) -ActionChanged ([scriptblock]::Create("start-sleep -m 10 ; Update-PersistentData")) -Quiet |out-null
+                    } else {
+                        Register-Watcher -folder (Split-Path $Path -Parent) -Filter (Split-Path $path -Leaf) -ActionChanged ([scriptblock]::Create("start-sleep -m 10 ; Update-PersistentData -verbose")) | Out-Null
                     }
                 }
             }
@@ -224,9 +241,10 @@ Function Set-PersistentData {
                 $Update = $true
             }
             "ChangeADD" {
-                if (
-                    !$Script:PDSettings.Data.$Vault.$Name # variable does not exist
-                ) { Write-Error "Missing variable" -ea Stop }else {
+                # Variable does not exist
+                if ( !$Script:PDSettings.Data.$Vault.$Name) { 
+                    Set-PersistentData -Name $Name -Value $Value
+                } else { # Variable Exist
                     if (!$Script:PDSettings.Data.$Vault.$Name.Type) {
                         $ThisType = $Value.GetType().Name.ToString()
                     } else {
@@ -249,9 +267,9 @@ Function Set-PersistentData {
                 }
             }
             "ChangeSUB" {
-                if (
-                    !$Script:PDSettings.Data.$Vault.$Name # variable does not exist
-                ) {Write-Error "Missing variable" -ea Stop }else {
+                # variable does not exist
+                if ( !$Script:PDSettings.Data.$Vault.$Name ) {Write-Error "Missing variable" -ea Stop
+                }else { #Variable Exist
                     Switch ($ThisType) {
                         "int"    {$Script:PDSettings.Data.$Vault.$Name.Value -= $Value}
                         Default {
@@ -273,9 +291,10 @@ Function Set-PersistentData {
         if ($Update) {
             Write-PersistentData -Data $Script:PDSettings.Data.$Vault -Path $Path -Vault $vault
         }
-        $end = Get-date
-        Write-Verbose "Set-PersistentData took: $([int]($end - $start).TotalMilliseconds)"
-        Write-Verbose "End of Set-PersistentData"
+        if ($Verbose) { $end = [DateTime]::Now
+            Write-Verbose "Set-PersistentData took: $([int]($end - $start).TotalMilliseconds) ms"
+            Write-Verbose "End of Set-PersistentData"
+        }
     }
 }
 
@@ -291,9 +310,11 @@ Function Write-PersistentData {
         [string]$Vault = $PDDefaultVault
     )
     Begin {
-        Write-Verbose "Start of Write-PersistentData"
+        $Verbose = $PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent
+        if ($Verbose) {$start = [DateTime]::Now
+            Write-Verbose "Start of Write-PersistentData"
+        }
         #$First = $true
-        $start = Get-date
         $first = $null
     }
     Process{
@@ -316,9 +337,10 @@ Function Write-PersistentData {
         Out-File -FilePath $path -Encoding $Encoding -Force -InputObject ($list|ConvertTo-Json)
     }
     End{
-        $end = Get-date
-        Write-Verbose "Write-PersistentData took: $([int]($end - $start).TotalMilliseconds)"
-        Write-Verbose "End of Write-PersistentData"
+        if ($Verbose) { $end = [DateTime]::Now
+            Write-Verbose "Write-PersistentData took: $([int]($end - $start).TotalMilliseconds) ms"
+            Write-Verbose "End of Write-PersistentData"
+        }
     }
 }
 
@@ -350,12 +372,13 @@ Function Update-PersistentData {
         $Vault=$PDDefaultVault
     )
     BEGIN {
+        $Verbose = $PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent
         Write-Verbose "Start of Update-PersistentData"
         $first = $null
     }
     Process {
         #if ($first -ne $Vault) { # Takes avg 4 ms
-            $Start = Get-date
+            if ($Verbose) {$start = [DateTime]::Now}
             Get-PersistentData $Path $Vault
             $first = $Vault
         #}
@@ -379,9 +402,10 @@ Function Update-PersistentData {
         } # End of update
     }
     END{
-        $end = Get-date
-        Write-Verbose "Update-PersistentData took: $([int]($end - $start).TotalMilliseconds)"
-        Write-Verbose "End of Update-PersistentData"
+        if ($Verbose) { $end = [DateTime]::Now
+            Write-Verbose "Update-PersistentData took: $([int]($end - $start).TotalMilliseconds) ms"
+            Write-Verbose "End of Update-PersistentData"
+        }
     }
 }
 
@@ -398,8 +422,10 @@ Function Show-PersistentData {
         $AllListsAndAllData
     )
     Begin{
-        $Start = Get-Date
-        Write-Verbose "Start of Show-PersistentData"
+        $Verbose = $PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent
+        if ($Verbose) {$start = [DateTime]::Now
+            Write-Verbose "Start of Show-PersistentData"
+        }
     }
     Process {
         if($AllLists){$Script:PDSettings.Vault.Keys}
@@ -412,9 +438,10 @@ Function Show-PersistentData {
         }
     }
     End {
-        $end = Get-date
-        Write-Verbose "Show-PersistentData took: $([int]($end - $start).TotalMilliseconds)"
-        Write-Verbose "End of Show-PersistentData"
+        if ($Verbose) { $end = [DateTime]::Now
+            Write-Verbose "Show-PersistentData took: $([int]($end - $start).TotalMilliseconds) ms"
+            Write-Verbose "End of Show-PersistentData"
+        }
     }
 }
 
@@ -450,8 +477,10 @@ Function Remove-PersistentData {
         [string[]]$Name
     )
     Begin{
-        $Start = Get-Date
-        Write-Verbose "Start of Remove-PersistentData"
+        $Verbose = $PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent
+        if ($Verbose) {$start = [DateTime]::Now
+            Write-Verbose "Start of Remove-PersistentData"
+        }
     }
     Process {
         Foreach ($Nam in $name) {
@@ -459,12 +488,13 @@ Function Remove-PersistentData {
         }
     }
     End{
-        $end = Get-date
-        Write-Verbose "Remove-PersistentData took: $([int]($end - $start).TotalMilliseconds)"
-        Write-Verbose "End of Remove-PersistentData"
+        if ($Verbose) {$end = [DateTime]::Now
+            Write-Verbose "Remove-PersistentData took: $([int]($end - $start).TotalMilliseconds) ms"
+            Write-Verbose "End of Remove-PersistentData"
+        }
     }
 }
-
+<#
 Function Test-FileLock {
 Param(
 [String]$Path
@@ -489,15 +519,46 @@ Process{
 }
 End{}
 }
-
+#>
 # Update all variables
-Update-PersistentData -Verbose
-if ($Script:PDSettings.Data.$PDDefaultVault.StartWatcher.Value) {
-    if ($Script:PDSettings.Data.$PDDefaultVault.StartWatcherQuiet.Value){
-        @($Script:PDSettings.Data.$PDDefaultVault.StartWatcher.Value) | % { Set-PersistentData -StartWatcher -Path $_ -Quiet}
-    }else {
-        @($Script:PDSettings.Data.$PDDefaultVault.StartWatcher.Value) | % { Set-PersistentData -StartWatcher -Path $_}
+
+Function Start-PersistentDataJobs {
+    [CmdletBinding(SupportsShouldProcess,DefaultParameterSetName="Woop")]
+    Param(
+        [ValidateNotNullOrEmpty()]
+        [Parameter(ValueFromPipelineByPropertyName,ParameterSetName='Addjob')]                   $Addjob,
+        [Parameter(ValueFromPipelineByPropertyName,ParameterSetName='StartWatcher')]     [switch]$StartWatcher,
+        [Parameter(ValueFromPipelineByPropertyName,ParameterSetName='StartWatcherQuiet')][switch]$StartWatcherQuiet
+    )
+    #Param($AddJob,[switch]$StartWatcher,[switch]$StartWatcherQuiet)
+    Begin{}
+    Process{
+        switch ($PsCmdlet.ParameterSetName) {
+            "Woop"              {
+                    Foreach ( $job in $Global:PersistentDataJobs ) {
+                        Try {
+                            $ea = $ErrorActionPreference
+                            $ErrorActionPreference = "Stop"
+                            . ( [ScriptBlock]::Create( $job ) )
+                        } Catch {
+                            Write-Warning "Failed to Start-PersistentDataJobs on:"
+                            $job
+                            Write-Error -ErrorAction Continue $_
+                        } Finally {
+                            $ErrorActionPreference = $ea
+                        }
+                        
+                    }
+                }
+            "StartWatcher"      {Set-PersistentData -Add PersistentDataJobs "Set-PersistentData -StartWatcher -Path $PDDefaultPath"}
+            "StartWatcherQuiet" {Set-PersistentData -Add PersistentDataJobs "Set-PersistentData -StartWatcher -Quiet -Path $PDDefaultPath"}
+            "Addjob"            {Set-PersistentData -Add PersistentDataJobs $AddJob}
+        }
     }
+    End{}
 }
 
-Export-ModuleMember -Function Set-PersistentData,Update-PersistentData,Remove-PersistentData,Show-PersistentData -ErrorAction Ignore
+Update-PersistentData -Verbose
+Start-PersistentDataJobs
+
+Export-ModuleMember -Function Set-PersistentData,Update-PersistentData,Remove-PersistentData,Show-PersistentData,Start-PersistentDataJobs -ErrorAction Ignore

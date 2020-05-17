@@ -23,18 +23,18 @@ Function Global:prompt {
     }
     Process {
         Prompt_SetLastRunCommand
-        $PPstart = get-date # används nu på flera ställen i scriptet där get-date används
-    
-        
+        $PPstart = [DateTime]::Now # används nu på flera ställen i scriptet där get-date används
+        $Script:NewDay = $false
+        Prompt_SessionStart
+
         Prompt_Provider
         Prompt_ColorizePWD
         Prompt_Seperator
         Prompt_time
         Prompt_Seperator
-        Prompt_SessionStart
-        Prompt_Seperator
         Prompt_SessionOnline
         Prompt_NewLine
+        Prompt_MotD
         Prompt_DBG
         Prompt_ADM
         Encapture-Word -word (get-history).count -color1 (Prompt_BoolLastCommand Green Red) yellow
@@ -51,15 +51,18 @@ Function Global:prompt {
 function Prompt_NewDay{
     Param(
         $day,
-        $keep = 5
+        $keep = $WorkDaysToKeep
     )
-    if (!$BeenAtIt) {
-        Set-PersistentData BeenAtIt $day
-    }else {
-        if ($BeenAtIt.count -gt $keep) {
-            Set-PersistentData -Subtract BeenAtIt $beenAtIt[0]
+    if ($Script:NewDay) {
+        if(!$keep) { Set-PersistentData WorkDaysToKeep 5}
+        if (!$WorkDays) {
+            Set-PersistentData WorkDays $day
+        }else {
+            if ($WorkDays.count -gt $keep) {
+                Set-PersistentData -Subtract WorkDays $WorkDays[0]
+            }
+            Set-PersistentData -Add WorkDays $day
         }
-        Set-PersistentData -Add BeenAtIt $day
     }
 }
 
@@ -76,14 +79,11 @@ function Prompt_ColorizePWD {
         [ConsoleColor]$Color1 = "Green",
         [ConsoleColor]$Color2 = "white"
     )
-    $pwd -split '\\' | % -Begin {
-            $first = $true
-        } -Process {
-            Write-Host -ForegroundColor $Color1 $_ -NoNewline ; 
-            if (!$First) {
-                Write-Host -ForegroundColor $Color2 "\" -NoNewline
-            } else {$First = $false}
-        } -End {  $Script:addSeperator = $true}
+    ($pwd -split '\\').foreach{
+            Write-Host -ForegroundColor $Color1 $_ -NoNewline
+            Write-Host -ForegroundColor $Color2 "\" -NoNewline
+        }
+    $Script:addSeperator = $true
 }
 function Prompt_NestedLevel {
     param ([ConsoleColor]$ForegroundColor = "Cyan",[switch]$NewLine)
@@ -129,22 +129,14 @@ Function Prompt_SessionStart {
         Try {
             Update-PersistentData -ErrorAction Stop
             if ( !$global:StartOfSession -or $PPstart -gt ( get-date -Hour 4 -date $global:StartOfSession.Date.AddDays(1) ) ) {
-                if ($Script:SessionOnline) {
-                    $latestDay = "{0}-{1}-{2} {4} {3}" -f $global:StartOfSession.Year,    #0
-                                                          $global:StartOfSession.Month,   #1
-                                                          $global:StartOfSession.Day,     #2
-                                                          $Script:SessionOnline,          #3
-                                                          $global:StartOfSession.DayOfWeek#4
-                    Prompt_NewDay $latestDay
+                if ($Script:SessionOnline) { # start av en instans bör ej ha detta och kan då inte göra detta...
+                    $Script:NewDay = $true
+                    $Script:LatestDay = "{0:yyyy}-{0:MM}-{0:dd} {0:dddd} {1}" -f $global:StartOfSession,$Script:SessionOnline
                 }
                 Set-PersistentData StartOfSession $PPstart -ea Stop
             }
-            if (    $global:StartOfSession.Hour -le 11) { Write-Host "Good morning" $env:USERNAME }
-            elseif ($global:StartOfSession.Hour -le 16) { Write-Host "Good day" $env:USERNAME }
-            elseif ($global:StartOfSession.Hour -gt 16) { Write-Host "Good evening" $env:USERNAME }
         } Catch {
             #Write-Warning "Failed session start"
-            $Script:addSeperator = $true
         }
     }
 }
@@ -156,9 +148,11 @@ function Prompt_SessionOnline {
     )
     #if (!$Global:StartOfSession) {return ""}
     if ( $outputType -eq "TimeSinceStart" ) {
-        $total = ($PPstart - $global:StartOfSession )
-        $doubleNumbers = { param ( [int]$number ) if ($number -lt 10 ) { "0$number" } else {$number} }
-        $Script:SessionOnline = "$(. $doubleNumbers $total.Hours ):$(. $doubleNumbers $total.Minutes)"
+        if ($global:StartOfSession.GetType().name -ne 'DateTime' ) {
+            $total = ($PPstart - (Get-date $global:StartOfSession ) ) 
+        }else{ $total = ($PPstart - $global:StartOfSession )
+        }
+        $Script:SessionOnline = "{0:hh}:{0:mm}" -f $total
         Write-Host "S$Script:SessionOnline" -NoNewline -ForegroundColor $ForegroundColor
     } elseif ($outputType -eq "SessionStart" ) {
         write-host "S$( $global:StartOfSession.ToShortTimeString() )" -NoNewline -ForegroundColor $ForegroundColor
@@ -183,4 +177,12 @@ Function Prompt_time {
     Param([ConsoleColor]$Color = "Cyan")
     Write-Host -NoNewline $PPstart.ToShortTimeString() -ForegroundColor $Color
     $Script:addSeperator = $true
+}
+Function Prompt_MotD {
+    if ($Script:NewDay){
+        Prompt_NewDay $latestDay
+        if (    $global:StartOfSession.Hour -le 11) { Write-Host "Good morning" $env:USERNAME }
+        elseif ($global:StartOfSession.Hour -le 16) { Write-Host "Good day" $env:USERNAME }
+        else { Write-Host "Good evening" $env:USERNAME }
+    }
 }
