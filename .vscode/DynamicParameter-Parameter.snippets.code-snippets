@@ -1,0 +1,41 @@
+{
+  "DynamicParameter-Parameter": {
+    "scope": "powershell",
+    "prefix": "DynamicParameter Parameter",
+    "description": "With Dynamic parameter, Intellisense will be easier to populate with objects, but will in return require more cpu time!",
+    "body": [
+      "",
+      "        #region Parameter Nr X, aka COPY PASTE THIS TEMPLATE {",
+      "            If (\\$SomeParameter) { # NOT REQUIRED",
+      "",
+      "            # 1",
+      "            \\$attribute = New-Object System.Management.Automation.ParameterAttribute",
+      "            \\$attribute.Position     = 1 # 1 is the second position",
+      "            \\$attribute.Mandatory    = \\$true",
+      "            \\$attribute.HelpMessage  = 'This was a helping message!'",
+      "            \\$attribute.ValueFromPipelineByPropertyName = \\$true",
+      "",
+      "            # 2",
+      "            \\$attributeCollection = New-Object System.Collections.ObjectModel.Collection[System.Attribute]",
+      "            \\$attributeCollection.Add(\\$attribute)",
+      "            ",
+      "",
+      "            # Add MORE VALIDATORS! (not required, but should be!)",
+      "            \\$ValidateSet = @( Get-Process |Select -expand Name | Sort Name )",
+      "            \\$attributeCollection.Add( (New-Object System.Management.Automation.ValidateSetAttribute( \\$ValidateSet ) ) )",
+      "            ",
+      "            # 3",
+      "            # By specifying DataType, you can either check if it is this datatype, prase it to this datatype, ",
+      "            # or if you have ParameterSets, it can switch AUTOMATICLY when it does not fit default",
+      "            \\$NewParameterName   = 'PName'",
+      "            \\$ParamDataType      = [array[]] # [string], [string[]], [system.what.ever]",
+      "            \\$attributeParam     = New-object System.Management.Automation.RuntimeDefinedParameter(\\$NewParameterName,\\$ParamDataType,\\$attributeCollection)",
+      "            ",
+      "            # 4.add",
+      "            \\$ParamDictionary.Add(\\$NewParameterName,\\$attributeParam)",
+      "            } # end of if \\$SomeParameter",
+      "        #endregion   } END OF Parameter Nr X",
+      ""
+    ]
+  }
+}

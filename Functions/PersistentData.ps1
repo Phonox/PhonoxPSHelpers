@@ -228,9 +228,9 @@ Function Set-PersistentData {
             "Watcher"   {
                 if (! (Get-EventSubscriber | ? EventName -eq "Changed") ) { #quickfix
                     if (!$Quiet) { 
-                        Register-Watcher -folder (Split-Path $Path -Parent) -Filter (Split-Path $path -Leaf) -ActionChanged ([scriptblock]::Create("start-sleep -m 10 ; Update-PersistentData")) -Quiet |out-null
+                        Register-Watcher -folder (Split-Path $Path -Parent) -Filter (Split-Path $path -Leaf) -ActionChanged ([scriptblock]::Create("start-sleep -m 15 ; Update-PersistentData")) -Quiet |out-null
                     } else {
-                        Register-Watcher -folder (Split-Path $Path -Parent) -Filter (Split-Path $path -Leaf) -ActionChanged ([scriptblock]::Create("start-sleep -m 10 ; Update-PersistentData -verbose")) | Out-Null
+                        Register-Watcher -folder (Split-Path $Path -Parent) -Filter (Split-Path $path -Leaf) -ActionChanged ([scriptblock]::Create("start-sleep -m 15 ; Update-PersistentData -verbose")) | Out-Null
                     }
                 }
             }

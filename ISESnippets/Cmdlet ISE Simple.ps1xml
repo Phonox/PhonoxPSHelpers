@@ -2,9 +2,9 @@
     <Snippets  xmlns='http://schemas.microsoft.com/PowerShell/Snippets'>
         <Snippet Version='1.0.0'>
             <Header>
-                <Title>Cmdlet (pasv version)</Title>
+                <Title>Cmdlet ISE Simple</Title>
                 <Description>Fast version for a complete function</Description>
-                <Author>pasv</Author>
+                <Author>MS PowerShell</Author>
                 <SnippetTypes>
                     <SnippetType>Expansion</SnippetType>
                 </SnippetTypes>
@@ -13,7 +13,6 @@
             <Code>
                 <Script Language='PowerShell' CaretOffset='0'>
                     <![CDATA[
-Function Verb-Noun {
 <#
 .Synopsis
    Short description
@@ -23,39 +22,33 @@ Function Verb-Noun {
    Example of how to use this cmdlet
 .EXAMPLE
    Another example of how to use this cmdlet
-.INPUTS
-   Inputs to this cmdlet (if any)
-.OUTPUTS
-   Output from this cmdlet (if any)
-.NOTES
-   General notes
-.COMPONENT
-   The component this cmdlet belongs to
-.ROLE
-   The role this cmdlet belongs to
-.FUNCTIONALITY
-   The functionality that best describes this cmdlet
 #>
-    [CmdletBinding(SupportsShouldProcess)]
-    Param(
-        [Parameter(ValueFromPipeline,
-                   ValueFromPipelineByPropertyName,
-                   ValueFromRemainingArguments=$false,
+function Verb-Noun
+{
+    [CmdletBinding()]
+    [Alias()]
+    [OutputType([int])]
+    Param
+    (
+        # Param1 help description
+        [Parameter(Mandatory=$true,
+                   ValueFromPipelineByPropertyName=$true,
                    Position=0)]
-        [ValidateNotNullOrEmpty()]
-		#Help about this parameter
-        $Stuff
+        $Param1,
+
+        # Param2 help description
+        [int]
+        $Param2
     )
-    Begin{
-    
+
+    Begin
+    {
     }
-    Process{
-		if ( $pscmdlet.ShouldProcess("Target", "Operation") )
-        {
-        }
+    Process
+    {
     }
-    End{
-        
+    End
+    {
     }
 }
 ]]>

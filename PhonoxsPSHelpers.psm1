@@ -1,6 +1,6 @@
-$pathPublic = "$PSScriptRoot\Functions"
-$pathSnippet = "$PSScriptRoot\ISESnippets"
-get-childitem $pathPublic\*psm1,$pathPublic\*ps1 |
+$pathPublic = Join-Path $PSScriptRoot  "Functions"
+$pathSnippet = Join-Path $PSScriptRoot "ISESnippets"
+get-childitem $pathPublic/*psm1,$pathPublic/*ps1 |
   ?{$_.Name -notmatch "\.test.?\.ps1$|\.test.?\.psm1$"} | Sort -Descending |
   % -Begin {"Importing files:";$total = 0} `
     -Process {

@@ -33,6 +33,8 @@ Function Global:prompt {
         Prompt_time
         Prompt_Seperator
         Prompt_SessionOnline
+        Prompt_Seperator
+        Prompt_week
         Prompt_NewLine
         Prompt_MotD
         Prompt_DBG
@@ -40,7 +42,7 @@ Function Global:prompt {
         Encapture-Word -word "H:$( (Get-History).count)" -color1 (Prompt_BoolLastCommand Green Red) yellow
         Encapture-Word -word "E:$($error.count)" -color1 (Prompt_BoolLastCommand Green Red) yellow
         # Prompt_Versioning
-        Prompt_NestedLevel "$(Prompt_BoolLastCommand Cyan Red)"
+        Prompt_NestedLevel (Prompt_BoolLastCommand Cyan Red)
         #$PPend = get-date # EXTRA
         #([int]($PPend - $PPstart).TotalMilliseconds).ToString() # EXTRA
     }
@@ -203,6 +205,10 @@ Function Prompt_time {
     $Script:addSeperator = $true
 }
 
+Function Prompt_week {
+    $week = Get-Date -UFormat %V
+    Write-Host "W$week" -NoNewline
+}
 Function Prompt_MotD {
     if ($Script:NewDay){
         Prompt_NewDay $LastDay
