@@ -1,29 +1,51 @@
 Function Convert-ISESnippets {
+    <#
+    .SYNOPSIS
+        Ease the convert from ISE to VS Code if you got your own snippets
+    .DESCRIPTION
+        Convert ISE snippets to vs code format to same folder or specific (-Destination) folder
+    .EXAMPLE
+        Convert-ISEsnippets -Path ./ISESnippets/ -Destination ./.vscode/
+        Processed 6 files.
+    .EXAMPLE
+        Convert-ISEsnippets -Path ./ISESnippets/
+        Processed 6 files.
+    .NOTES
+        General notes
+    #>
     [CmdletBinding(SupportsShouldProcess)]
     Param(
         [Parameter(ValueFromPipeline,ValueFromPipelineByPropertyName)]
         [string[]]
         [ValidateNotNullOrEmpty()]
-        [Alias("PSPath")]
-        $Path,
+        #[Alias("PSPath")]
+        [string[]]
+        $Paths,
         [string]$Destination
     )
     Begin {
         $ProcessedFiles = 0
         $ErrorActionPreference = "Stop"
+        $ProcessFiles = @()
     }
     Process {
-        $Paths = $Path
-        Foreach ($Path in $Paths) {
+        $Pathss = @(Convert-Path $Paths)
+        foreach ($Path in $pathss ) {
+            if (Check-FileAttributes $Path Directory) { $ProcessFiles += Get-ChildItem -Force $Path |Where-Object { $_.Name -match 'ps1xml$' }  }
+            elseif ( $Path -match  'ps1xml$' ) { $ProcessedFiles += $Path }
+            else { Write-Error "Files is not correct file format: $Path"}
+        }
+        Foreach ($Path in $ProcessFiles) {
             if (! (Test-path $Path) ) { Write-Error "file path is non existing: $Path"}
-            [xml]$Content = Get-Content $Path -Raw
+            [xml]$Content = Get-Content $Path -Raw -force
             $body = $Content.snippets.snippet.code.script."#cdata-section" -split "`r?`n" # splitting for readability
             $Snippet = @{}
             $title = $Content.snippets.snippet.header.Title
             $Snippet.$title = @{}
             $Snippet.$title.description = $Content.snippets.snippet.header.Description
             $Snippet.$title.scope = "powershell"
-            $Snippet.$title.prefix = $title -replace '-',' '
+            $itemsToAddToPrefix = ( ( $title -replace '-',' ' ), ( ($title -replace 'version' -split '\W' |Select-Object -skip 1 | Where-Object { $_ }) -join ',' ) -join ',' ) -split ","
+            $Snippet.$title.prefix =  $itemsToAddToPrefix
             $Snippet.$title.body = $body -replace "\$","\$"
             $JsonSnippet = $Snippet | ConvertTo-Json
             
@@ -54,5 +76,4 @@ Function Convert-ISESnippets {
         Write-Host "Processed $ProcessedFiles files."
     }
 }
-# Get-ChildItem -File ../ISESnippets |? Name -match 'ps1xml$' | Convert-ISESnippets -Destination "../.vscode"
 Export-ModuleMember -function Convert-ISESnippets

@@ -12,7 +12,7 @@ Describe "Timer features" {
         (Get-timer ).count |should -be 1
     }
     It 'Should be no timers right now' {
-        (Get-timer | ? Time -eq $SoonDate ).count |should -be 1
+        (Get-timer | Where-Object Time -eq $SoonDate ).count |should -be 1
     }
 }
 

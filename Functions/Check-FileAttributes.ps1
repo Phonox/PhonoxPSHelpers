@@ -20,7 +20,8 @@ Function Check-FileAttributes{
     Archive, ReparsePoint
     .OUTPUTS
     [Bool]
-
+    [System.IO.fileattributes]
+    [String]
     #>
     [CmdletBinding(DefaultParameterSetName='FileAttributes')]
     Param(

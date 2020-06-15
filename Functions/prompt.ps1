@@ -115,9 +115,11 @@ function Prompt_Provider {
 function Prompt_ADM {
     param ([ConsoleColor]$color1 = "Gray",[ConsoleColor]$color2 = "Red")
     #if ( [bool](([System.Security.Principal.WindowsIdentity]::GetCurrent()).groups -match "S-1-5-32-544") )
-    If ( ( [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator") )
-    {
-        Encapture-Word -word ADM -color1 $color1 -color2 $color2
+    if ( $IsWindows ){
+        If ( ( [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator") )
+        {
+            Encapture-Word -word ADM -color1 $color1 -color2 $color2
+        }
     }
 }
 
@@ -192,9 +194,9 @@ Function Encapture-Word {
 
 function Prompt_Versioning {
     Param ( $word , [ConsoleColor]$color1="Yellow",[ConsoleColor]$color2="Green")
-    if ( (ls -Directory -Force |select -ExpandProperty name) -in ".git") {
+    if ( (ls -Directory -Force | Select-Object -ExpandProperty name) -in ".git") {
         Encapture-Word -word GIT -color1 $color1 -color2 $color2
-    }elseif ( (ls -Directory -Force |select -ExpandProperty name) -in ".svn") {
+    }elseif ( (ls -Directory -Force | Select-Object -ExpandProperty name) -in ".svn") {
         Encapture-Word -word SVN -color1 $color1 -color2 $color2
     }
 }

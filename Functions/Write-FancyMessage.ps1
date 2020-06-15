@@ -51,7 +51,7 @@ Write-FancyMessage "test" -BackgroundColor Green -ForegroundColor DarkYellow
         $PSBoundParameters.Remove("BorderChar") |out-null
         $CharRepeat = $BorderChar * ($Length + 4 )
         Write-Host $CharRepeat @PSBoundParameters
-        $AllStrings | % {
+        $AllStrings | ForEach-Object {
             Write-Host "$BorderChar $_$( 
                 $i = [int]($Length - $_.Length) ;
                 if ($i -gt 0) {' ' * $i} ) $BorderChar" @PSBoundParameters }

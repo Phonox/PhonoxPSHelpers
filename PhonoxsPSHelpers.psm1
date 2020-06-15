@@ -1,8 +1,8 @@
 $pathPublic = Join-Path $PSScriptRoot  "Functions"
 $pathSnippet = Join-Path $PSScriptRoot "ISESnippets"
-get-childitem $pathPublic/*psm1,$pathPublic/*ps1 |
-  ?{$_.Name -notmatch "\.test.?\.ps1$|\.test.?\.psm1$"} | Sort -Descending |
-  % -Begin {"Importing files:";$total = 0} `
+Get-ChildItem $pathPublic/*psm1,$pathPublic/*ps1 |
+  Where-Object {$_.Name -notmatch "\.test.?\.ps1$|\.test.?\.psm1$"} | Sort-Object -Descending |
+  ForEach-Object -Begin {"Importing files:";$total = 0} `
     -Process {
           $total++; 
           Import-Module $_.FullName -DisableNameChecking #-Verbose
@@ -16,7 +16,7 @@ get-childitem $pathPublic/*psm1,$pathPublic/*ps1 |
 if ([bool]$host.PrivateData.window ) {
   Import-IseSnippet $pathSnippet -Recurse
   Get-ChildItem $pathSnippet | 
-  % -Begin {"Importing files:";$total = 0} `
+  ForEach-Object -Begin {"Importing files:";$total = 0} `
     -Process {
       $total++; 
       Write-Verbose "Imported $_"

@@ -1,8 +1,6 @@
 {
   "DynamicParameter-Parameter": {
     "scope": "powershell",
-    "prefix": "DynamicParameter Parameter",
-    "description": "With Dynamic parameter, Intellisense will be easier to populate with objects, but will in return require more cpu time!",
     "body": [
       "",
       "        #region Parameter Nr X, aka COPY PASTE THIS TEMPLATE {",
@@ -21,7 +19,7 @@
       "            ",
       "",
       "            # Add MORE VALIDATORS! (not required, but should be!)",
-      "            \\$ValidateSet = @( Get-Process |Select -expand Name | Sort Name )",
+      "            \\$ValidateSet = @( Get-Process |Select-Object -expand Name | Sort-Object Name )",
       "            \\$attributeCollection.Add( (New-Object System.Management.Automation.ValidateSetAttribute( \\$ValidateSet ) ) )",
       "            ",
       "            # 3",
@@ -36,6 +34,11 @@
       "            } # end of if \\$SomeParameter",
       "        #endregion   } END OF Parameter Nr X",
       ""
+    ],
+    "description": "With Dynamic parameter, Intellisense will be easier to populate with objects, but will in return require more cpu time!",
+    "prefix": [
+      "DynamicParameter Parameter",
+      "Parameter"
     ]
   }
 }

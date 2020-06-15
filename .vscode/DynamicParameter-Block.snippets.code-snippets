@@ -1,8 +1,6 @@
 {
   "DynamicParameter-Block-Simple": {
     "scope": "powershell",
-    "prefix": "DynamicParameter Block Simple",
-    "description": "DynamicParam-Block which is all you need to start with DynamicParam",
     "body": [
       "",
       "    DynamicParam {",
@@ -32,7 +30,7 @@
       "            ",
       "",
       "            # Add MORE VALIDATORS! (not required, but should be!)",
-      "            \\$ValidateSet = @( Get-Process |Select -expand Name | Sort Name )",
+      "            \\$ValidateSet = @( Get-Process |Select-Object -expand Name | Sort-Object Name )",
       "            \\$attributeCollection.Add( (New-Object System.Management.Automation.ValidateSetAttribute( \\$ValidateSet ) ) )",
       "            ",
       "            # 3",
@@ -52,6 +50,12 @@
       "        return \\$paramDictionary",
       "    }",
       ""
+    ],
+    "description": "DynamicParam-Block which is all you need to start with DynamicParam",
+    "prefix": [
+      "DynamicParameter Block Simple",
+      "Block",
+      "Simple"
     ]
   }
 }

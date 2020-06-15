@@ -52,7 +52,7 @@ Total: 4, Existing: 0, Removed: 4
         $Paths = $Path
         foreach ($Path in $Paths) {
             switch (get-item $Path -ea stop -Force ) {
-                { Check-FileAttributes $_ Directory } { Get-ChildItem -Force $Path |? {$_.Name -match "code-snippets$"} | Select -Expand FullName | Update-VSCodeJsonSnippets -state $state ; return "" }
+                { Check-FileAttributes $_ Directory } { Get-ChildItem -Force $Path | Where-Object {$_.Name -match "code-snippets$"} | Select-Object -Expand FullName | Update-VSCodeJsonSnippets -state $state ; return "" }
                 { $_.Name -match "\.code-snippets$" } { $AllFiles.Add( ( Get-Content -Force $_ -raw |ConvertFrom-Json ) ) | Out-Null ; break }
                 Default {Write-Error "Not correct input, requires .code-snippets"}
             }
@@ -76,7 +76,7 @@ Total: 4, Existing: 0, Removed: 4
             $Existing = 0
             $Removed  = 0
             $Updated  = 0
-            foreach ($group in ($rewroteJson |group scope) ) {
+            foreach ($group in ($rewroteJson |Group-Object scope) ) {
                 $VSScopePath = $VsCodePath -replace "\(language\)",$group.Name
                 if (test-path $VSScopePath) {
                     $CurrentScopeFile = Get-Content -raw $VSScopePath |ConvertFrom-Json
@@ -84,7 +84,7 @@ Total: 4, Existing: 0, Removed: 4
                     $CurrentScopeFile = "" |ConvertTo-Json
                 }
                 $AddToThisGroupTitle = $group.Group.Title
-                $CurrentTitles = ($CurrentScopeFile|Get-Member |? MemberType -eq 'NoteProperty').Name
+                $CurrentTitles = ($CurrentScopeFile|Get-Member | Where-Object MemberType -eq 'NoteProperty').Name
                 $updatedJsonFile = "{`n"
                 $AllAccounted = ( $AddToThisGroupTitle + $CurrentTitles | Sort-Object -Unique ).Count
                 foreach ($obj in $AddToThisGroupTitle ) {

@@ -29,7 +29,7 @@
             
 
             # Add MORE VALIDATORS! (not required, but should be!)
-            $ValidateSet = @( Get-Process |Select -expand Name | Sort Name )
+            $ValidateSet = @( Get-Process |Select-Object -expand Name | Sort-Object Name )
             $attributeCollection.Add( (New-Object System.Management.Automation.ValidateSetAttribute( $ValidateSet ) ) )
             
             # 3

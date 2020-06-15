@@ -1,4 +1,8 @@
 Function Format-FileSize {
+    <#
+    .SYNOPSIS
+    Change the display of size, but still the same output
+    #>
     [cmdletBinding()]
     Param (
         [Parameter(ValueFromPipeline,ValueFromPipelineByPropertyName)]    

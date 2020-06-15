@@ -1,4 +1,8 @@
 Function Get-ChildItemSize {
+    <#
+    .SYNOPSIS
+    Changes the normal Get-ChildItem to display Length on folders aswell
+    #>
     [CmdletBinding(SupportsShouldProcess)]
     [Alias("lss")]
     Param(
@@ -26,9 +30,9 @@ Function Get-ChildItemSize {
     Process{
         Foreach ($P in $Path ) {
         $PSBoundParameters.Path = $p
-            Get-ChildItem @PSBoundParameters | % {
+            Get-ChildItem @PSBoundParameters | ForEach-Object {
                 if( $_.Attributes -like "*Directory*" ){ 
-                    $Size = (Get-ChildItem $_.Fullname -Recurse -Force -ea Ignore -File| Measure-Object Length -sum | select -ExpandProperty sum )
+                    $Size = (Get-ChildItem $_.Fullname -Recurse -Force -ea Ignore -File| Measure-Object Length -sum | Select-Object -ExpandProperty sum )
                     if (!$size){$size = 0}
                     Add-Member -InputObject $_ -MemberType NoteProperty -Name 'Length' -Value $size
                     $_

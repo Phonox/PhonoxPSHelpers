@@ -1,22 +1,36 @@
 #Requires -Module @{ ModuleName = 'Pester'; ModuleVersion = '4.9.0' }
-$modulename = "PhonoxsPSHelpers"
-$sut = $PSCommandPath -replace '\.tests\.ps1$', '.psd1'
+$ScriptPath = $PSScriptRoot
+$ModuleName = ( Split-Path $PSCommandPath -Leaf ) -replace '\.tests\.ps1$'
+$File = "$ModuleName.psd1"
+$FilePath = Convert-Path (Join-Path $ScriptPath $File)
+if ( !(test-path $FilePath ) ) { Write-Error "Failed to find file"}
+#Import-Module $FilePath -ea Ignore
+$TestFolderPath = Join-Path $ScriptPath "OldStuff"
 
-if ( !(gmo $modulename) ) { 
-    Import-Module $PSScriptRoot -Force ; 
+#$modulename = "PhonoxsPSHelpers"
+# $sut = $PSCommandPath -replace '\.tests\.ps1$', '.psd1'
+
+
+if ( !(Get-Module $modulename) ) { 
+    Import-Module $ScriptPath -Force ; 
     $imported = $true 
 }else {
     $imported = $false
     Remove-Module $modulename
-    Import-Module $PSScriptRoot
+    Import-Module $ScriptPath
 }
-Import-LocalizedData -BaseDirectory $PSScriptRoot -FileName "$modulename.psd1" -BindingVariable data
+Import-LocalizedData -BaseDirectory $ScriptPath -FileName "$modulename.psd1" -BindingVariable data
 
-describe 'Testing module manifest $modulename' {
+describe "Testing module manifest $ModuleName" {
     Context "ModuleManifest" {
-        $Manifest = Test-ModuleManifest $sut 
         It "Should have a correct formated manifest" {
-            $Manifest | should -BeTrue
+            #$Manifest = (Test-ModuleManifest $FilePath)
+            #write-host -ForegroundColor Magenta $FilePath
+            #write-host -ForegroundColor Magenta $ModuleName
+            (Test-ModuleManifest $FilePath).Name | should -Be $ModuleName
+        }
+        It "Manifest should exist" {
+            $FilePath | Should -Exist 
         }
         # WIP
         #It "Should have atleast 10 exported functions" {
@@ -35,20 +49,19 @@ describe 'Testing module manifest $modulename' {
             }
         }
     }
-    Context 'All FileList exists'{
-        # WIP To get performance
-        #It "should include a FileList" {
-        #    $countedFiles = (gci $PSScriptRoot -file -Recurse |? {$_.name -notmatch "$modulename"} ).count
-        #    $data.FileList.count | Should -BeGreaterThan $countedFiles
-        #}
-        foreach ( $path in $data.FileList){
-            It "File should exist: $path" {
-                (Join-Path $PSScriptRoot $_) | should -Exist
-            }
-        }
-    }
+    # Context 'All FileList exists'{
+    #     # WIP To get performance
+    #     #It "should include a FileList" {
+    #     #    $countedFiles = (gci $PSScriptRoot -file -Recurse |? {$_.name -notmatch "$modulename"} ).count
+    #     #    $data.FileList.count | Should -BeGreaterThan $countedFiles
+    #     #}
+    #     foreach ( $path in $data.FileList){
+    #         It "File should exist: $path" {
+    #             (Join-Path $PSScriptRoot $_) | should -Exist
+    #         }
+    #     }
+    # }
     Context 'All ModuleListexists'{
-    
         foreach ( $path in $data.ModuleListexists ){
             It "$path should exist" {
                 (Join-Path $PSScriptRoot $_) | should -Exist
@@ -58,24 +71,36 @@ describe 'Testing module manifest $modulename' {
     $allCommands = Get-Command -module $modulename -CommandType Function
     Context 'All functions have help'{
         foreach ( $path in $allCommands ){
-            It "Helpfile with SYNOPSIS should exist for $path" {
-                [bool](get-command $path -ShowCommandInfo |? Definition -match 'SYNOPSIS') |should -be "True"
+            It "SYNOPSIS should exist for $path" {
+                [bool](get-command $path -ShowCommandInfo |Where-Object Definition -match 'SYNOPSIS') |should -be "True"
+            }
+        }
+    }
+    Context 'All functions should have a test file each'{
+        # $CommandFiles = $allCommands | ForEach-Object { ${Function:$_}.File }
+        # $CommandFiles = Split-Path ( ${function:$allCommands}.File | Sort-Object -Unique ) -Leaf
+        $AllFiles = Get-ChildItem -File ( Join-Path $ScriptPath "Functions" ) | Select-Object -expand Name | ForEach-Object { $_ -replace '\.ps1','.tests.ps1'}
+        foreach ( $path in $AllFiles ){
+            It "Testfile exists for: $path" {
+                $testFile = Join-Path $TestFolderPath $Path
+                Test-Path $testFile |Should -BeTrue
             }
         }
     }
     Context 'Functions...' {
-        It "should exist 11 functions" {
-            $allCommands.count |should -Be 12
+        It "should exist atleast 18 functions" {
+            #[int]$allCommands.count |should -BeGreaterOrEqual 18
+            ($allCommands.count) |should -BeGreaterOrEqual 18
         }
     }
-    Context 'Performance..' {
+    Context 'Performance of PROMPT (Going to be moved)' {
         $int = 5
         $lessOrEqual= 20
         It "Prompt $int`x times should have an avg. faster than $lessOrEqual`ms" {    
-            $TMS = [int]( ( Measure-Command {0..$int | % { prompt *>&1 | Out-Null } } ).Milliseconds / ($int +1) ) 
+            $TMS = [int]( ( Measure-Command {1..$int | Foreach-object { prompt *>&1 | Out-Null } } ).Milliseconds / ($int ) ) 
             Write-Warning "Total avg. ms. $TMS"
             $TMS | Should -BeLessOrEqual $lessOrEqual
         }
     }
 }
-if ($imported) {Remove-Module $modulename}
+#if ($imported) {Remove-Module $modulename}

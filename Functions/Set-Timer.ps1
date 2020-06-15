@@ -149,7 +149,7 @@ $int
         }elseif ($PSCmdlet.ParameterSetName -eq "datetime") {
             [datetime]$NewTimer = $Date
         }
-        $NewId = Get-Timer | sort id | select -Last 1 -ExpandProperty id
+        $NewId = Get-Timer | Sort-Object id | Select-Object -Last 1 -ExpandProperty id
         if (!$newid) {$NewId = 1}
         else {$newid++}
 
@@ -225,7 +225,7 @@ Function Get-Timer {
     
     }
     Process{
-		$Script:StartedTimers |sort Time #| select -First 1
+		$Script:StartedTimers |Sort-Object Time #| select -First 1
     }
     End{
         
@@ -265,17 +265,17 @@ Function Remove-Timer {
     }
     Process{
         if ($all) {
-            $Script:StartedTimers | % {
+            $Script:StartedTimers | ForEach-Object {
                 $Timer.stop()
                 unregister-event "Timer$ID" -ErrorAction Continue
             }
             $Script:StartedTimers  = @()
         }
         elseif ($id) {
-            $Script:StartedTimers = $Script:StartedTimers | %  { 
+            $Script:StartedTimers = $Script:StartedTimers | ForEach-Object  { 
                 if ( $_.ID -ne $ID ){$_}
                 else {
-                    $Timer.stop() |Out-Host
+                    $Timer.stop() | Out-Host
                     unregister-event "Timer$ID" -ErrorAction Continue |Out-Host
                 }
             }

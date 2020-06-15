@@ -1,8 +1,6 @@
 {
   "DynamicParameter-Function-Simple": {
     "scope": "powershell",
-    "prefix": "DynamicParameter Function Simple",
-    "description": "With Dynamic parameter, Intellisense will be easier to populate with objects, but will in return require more cpu time!",
     "body": [
       "",
       "Function Verb-Noun",
@@ -51,7 +49,7 @@
       "            ",
       "",
       "            # Add MORE VALIDATORS! (not required, but should be!)",
-      "            \\$ValidateSet = @( Get-Process |Select -expand Name | Sort Name )",
+      "            \\$ValidateSet = @( Get-Process |Select-Object -expand Name | Sort-Object Name )",
       "            \\$attributeCollection.Add( (New-Object System.Management.Automation.ValidateSetAttribute( \\$ValidateSet ) ) )",
       "            ",
       "            # 3",
@@ -84,6 +82,12 @@
       "    {",
       "    }",
       "}"
+    ],
+    "description": "With Dynamic parameter, Intellisense will be easier to populate with objects, but will in return require more cpu time!",
+    "prefix": [
+      "DynamicParameter Function Simple",
+      "Function",
+      "Simple"
     ]
   }
 }

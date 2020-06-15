@@ -1,8 +1,6 @@
 {
   "Cmdlet ISE Simple": {
     "scope": "powershell",
-    "prefix": "Cmdlet ISE Simple",
-    "description": "Fast version for a complete function",
     "body": [
       "",
       "<#",
@@ -44,6 +42,12 @@
       "    }",
       "}",
       ""
+    ],
+    "description": "Fast version for a complete function",
+    "prefix": [
+      "Cmdlet ISE Simple",
+      "ISE",
+      "Simple"
     ]
   }
 }

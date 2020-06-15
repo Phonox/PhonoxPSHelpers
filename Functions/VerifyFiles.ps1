@@ -103,8 +103,8 @@ Verify-Checksum
         $list = New-object System.Collections.ArrayList
         $Allhash = @{}
         $start = get-date
-        if ( !(gmo Microsoft.Powershell.Utility  ) ) { import-module Microsoft.Powershell.Utility  -ErrorAction stop }
-        if ( !(gmo Microsoft.Powershell.Security ) ) { import-module Microsoft.Powershell.Security -ErrorAction stop }
+        if ( !(Get-Module Microsoft.Powershell.Utility  ) ) { import-module Microsoft.Powershell.Utility  -ErrorAction stop }
+        if ( !(Get-Module Microsoft.Powershell.Security ) ) { import-module Microsoft.Powershell.Security -ErrorAction stop }
         Get-Command Get-FileHash,Get-AuthentiCodeSignature -ErrorAction Stop | Out-null
     }
     Process{
@@ -116,12 +116,12 @@ Verify-Checksum
         }
         Try {
             Push-Location $path
-            $files = gci -Recurse $path -Force -ErrorAction Ignore -File |? {$_ -notmatch '\.?checksum\.csv$|checksum'}
+            $files = Get-ChildItem -Recurse $path -Force -ErrorAction Ignore -File | Where-Object {$_ -notmatch '\.?checksum\.csv$|checksum'}
             if ($files.count -gt 400) {Write-Warning "Loads of files! Could take time! files: $($files.count)"}
 		    $fileHash = $files | 
                 Get-FileHash -Algorithm $Algorithm |
-                select Algorithm,Hash,@{N="Path";E={Resolve-Path -Relative $_.Path} } |
-                % {}{$temp = Get-AuthenticodeSignature $_.Path ; 
+                Select-Object Algorithm,Hash,@{N="Path";E={Resolve-Path -Relative $_.Path} } |
+                ForEach-Object {}{$temp = Get-AuthenticodeSignature $_.Path ; 
                     $_ |Add-Member -NotePropertyName "SignerCertificate" -NotePropertyValue $temp.SignerCertificate.Thumbprint 
                     $_ |Add-Member -NotePropertyName "Status" -NotePropertyValue $temp.Status 
                     $_ |Add-Member -NotePropertyName "StatusMessage" -NotePropertyValue $temp.StatusMessage 
@@ -130,7 +130,7 @@ Verify-Checksum
                     $list.add( $_ )
                     $_
                     }{} | 
-                % {$int=0}  {$int++;if ($int % 1000 -eq 0) {Write-Verbose "At: $int Time: $( (Get-date) - $start)";$_} }  { }
+                ForEach-Object {$int=0}  {$int++;if ($int % 1000 -eq 0) {Write-Verbose "At: $int Time: $( (Get-date) - $start)";$_} }  { }
         } Catch{
             Write-Error $_
             Write-Warning "Have not taken care of this."
@@ -189,7 +189,7 @@ Verify-Checksum
     )
     Begin{
         if (!$path) {
-            $pwd = (pwd).Path
+            $pwd = (Get-Location).Path
             $path = Join-Path $pwd ( (Split-path -leaf $pwd) + ".checksum.csv" )
         }
         if ( (Get-Item $path -ErrorAction Ignore ).PSIsContainer ) {
@@ -332,7 +332,7 @@ Verify-Checksum
             }
         }
         foreach ( $again in $checkAgains) {
-		    $CheckSumFiles  += gci -file -Recurse -Force -path $path $again -EA Ignore |select -expand Fullname
+		    $CheckSumFiles  += Get-ChildItem -file -Recurse -Force -path $path $again -EA Ignore | Select-Object -expand Fullname
         }
 
         foreach ($file in $CheckSumFiles) {
@@ -341,19 +341,19 @@ Verify-Checksum
                 $data = Get-Content $file
                 #$data = @("765CA737C624AD3485751B5A6DA279327A2230911C96A22138E2A1F6822241F5.\path\file.exe765CA737C624AD3485751B5A6DA279327A2230911C96A22138E2A1F6822241F5.\path\file.exe",
                 #"765CA737C624AD3485751B5A6DA279327A2230911C96A22138E2A1F6822241F5.\path\file.exe765CA737C624AD3485751B5A6DA279327A2230911C96A22138E2A1F6822241F5.\path\file.exe")
-                $edited = $data -replace '(\.\\[\w\ \\]+\.\w\w\w)',';$1NewRow' -split 'NewRow'|? {$_} |% {$csv = "Algorithm;Hash;Path`n"} {$csv += "SHA256;$_`n"}{$csv} 
+                $edited = $data -replace '(\.\\[\w\ \\]+\.\w\w\w)',';$1NewRow' -split 'NewRow'| Where-Object {$_} | ForEach-Object {$csv = "Algorithm;Hash;Path`n"} {$csv += "SHA256;$_`n"}{$csv} 
                 $Original = $edited  | ConvertFrom-Csv -Delimiter ";"
             }elseif ($file -match '\.csv$') {
                 $data = Import-Csv -Delimiter ";" -Path $file
                 $Original = $data
             }
-            if ( ( $Original | Get-Member -MemberType *proper* | ? Name -notin "Chars","Length" | sort -Unique Name ).name -le 1 ) {
+            if ( ( $Original | Get-Member -MemberType *proper* | Where-Object Name -notin "Chars","Length" | Sort-Object -Unique Name ).name -le 1 ) {
                 # If there only 1 Property, ie. failed import
                 Write-Error "Failed to import the file, search for this row and update the script" -ErrorAction Stop
             }
             
             If ( $Original.Algorithm ) {
-                $Algorithm = $Original.Algorithm | Select -First 1
+                $Algorithm = $Original.Algorithm | Select-Object -First 1
             } else {
                 $Algorithm = "SHA256"
             }
@@ -445,7 +445,7 @@ Verify-Checksum
         $global:Resume = $Resume
         Write-Verbose "The Variable `$Resume holds all this information, including VerifyStatus"
         Write-Verbose "Total files checked: $($Resume.count)"
-        $Resume | Group VerifyStatus | Select Count,Name
+        $Resume | Group-Object VerifyStatus | Select-Object Count,Name
         Write-Verbose "End of Verify-Checksum $( (get-date) - $begin)"
     }
 }

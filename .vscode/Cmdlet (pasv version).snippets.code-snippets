@@ -1,8 +1,6 @@
 {
   "Cmdlet (pasv version)": {
     "scope": "powershell",
-    "prefix": "Cmdlet (pasv version)",
-    "description": "Fast version for a complete function",
     "body": [
       "",
       "Function Verb-Noun {",
@@ -51,6 +49,11 @@
       "    }",
       "}",
       ""
+    ],
+    "description": "Fast version for a complete function",
+    "prefix": [
+      "Cmdlet (pasv version)",
+      "pasv"
     ]
   }
 }

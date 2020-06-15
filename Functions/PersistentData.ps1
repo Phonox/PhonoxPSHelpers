@@ -2,7 +2,8 @@
 # Right now vault could be the same as path, but might work on these things later
 $Encoding  = "UTF8"
 $PDDefaultVault = 'PDDefault'
-$PDDefaultPath = (Join-Path $env:APPDATA "PDDefault.json")
+if (!$ENV:Appdata) { $ENV:Appdata = ( [Environment]::GetFolderPath('ApplicationData') ) } # quickfix for MacOS
+$PDDefaultPath = (Join-Path $ENV:Appdata "PDDefault.json")
 #$PDDefaultPath = (Join-Path $env:TEMP "PDDefault.json")
 #endregion
 Function Get-PersistentData {
@@ -33,8 +34,8 @@ Function Get-PersistentData {
 
             if ( !(Test-Path $path) ) {Write-Warning "File Missing! $Path" ; New-PersistentDataFile $Path -Confirm:$true }
             #$List = @( Get-Content $Path -Raw -Encoding $Encoding | ConvertFrom-Json -EA Continue) -as [System.Collections.ArrayList] | 
-            $List = @( Get-Content $Path -Raw -Encoding $Encoding | ConvertFrom-Json -EA Continue ) | 
-            %{
+            $List = @( Get-Content $Path -Raw -Encoding $Encoding -Force | ConvertFrom-Json -EA Continue ) | 
+            ForEach-Object {
                 if ($_.Scope -match "\w") { $_ } else {Throw "File is incomparable" }
             }
             
@@ -53,9 +54,10 @@ Function Get-PersistentData {
                 $Script:PDSettings.Vault.$Vault = @{}
             }
             $Script:PDSettings.Data.$Vault = @{}
+            $list.Where{ $_.Type -eq 'DateTime' }.foreach{ $_.Value = ($_.Value -as 'DateTime').ToLocalTime() }
             $Script:PDSettings.Vault.$Vault.List = $list
             if ($list) {
-                $Props = ( $list |gm -MemberType NoteProperty -ErrorAction Stop ) -as [PSCustomObject] |select -expand Name
+                $Props = ( $list |Get-Member -MemberType NoteProperty -ErrorAction Stop ) -as [PSCustomObject] |select-Object -ExpandProperty Name
             }
             $Script:PDSettings.Data.$Vault = @{}
             $first = $Vault
@@ -66,11 +68,11 @@ Function Get-PersistentData {
                 $Script:PDSettings.Data.$Vault.($obj.Name).$prop = @{}
                 $Script:PDSettings.Data.$Vault.($obj.Name).$prop = $obj.$prop
             }
-            if ( $Script:PDSettings.Data.$Vault.($obj.Name).Type -eq 'DateTime' ) {
-                $Script:PDSettings.Data.$Vault.($obj.Name).Value = ($Script:PDSettings.Data.$Vault.($obj.Name).Value -as $Script:PDSettings.Data.$Vault.($obj.Name).Type).ToLocalTime()
-            } else {
-                $Script:PDSettings.Data.$Vault.($obj.Name).Value = $Script:PDSettings.Data.$Vault.($obj.Name).Value -as $Script:PDSettings.Data.$Vault.($obj.Name).Type
-            }
+            # if ( $Script:PDSettings.Data.$Vault.($obj.Name).Type -eq 'DateTime' ) {
+            #     $Script:PDSettings.Data.$Vault.($obj.Name).Value = ($Script:PDSettings.Data.$Vault.($obj.Name).Value -as $Script:PDSettings.Data.$Vault.($obj.Name).Type).ToLocalTime()
+            # } else {
+            $Script:PDSettings.Data.$Vault.($obj.Name).Value = $Script:PDSettings.Data.$Vault.($obj.Name).Value -as $Script:PDSettings.Data.$Vault.($obj.Name).Type
+            # }
         }
     }
     End {
@@ -226,9 +228,9 @@ Function Set-PersistentData {
                 }
             }
             "Watcher"   {
-                if (! (Get-EventSubscriber | ? EventName -eq "Changed") ) { #quickfix
+                if (! (Get-EventSubscriber | Where-Object EventName -eq "Changed") ) { #quickfix
                     if (!$Quiet) { 
-                        Register-Watcher -folder (Split-Path $Path -Parent) -Filter (Split-Path $path -Leaf) -ActionChanged ([scriptblock]::Create("start-sleep -m 15 ; Update-PersistentData")) -Quiet |out-null
+                        Register-Watcher -folder (Split-Path $Path -Parent) -Filter (Split-Path $path -Leaf) -ActionChanged ([scriptblock]::Create("start-sleep -m 15 ; Update-PersistentData")) -Quiet | Out-Null
                     } else {
                         Register-Watcher -folder (Split-Path $Path -Parent) -Filter (Split-Path $path -Leaf) -ActionChanged ([scriptblock]::Create("start-sleep -m 15 ; Update-PersistentData -verbose")) | Out-Null
                     }
@@ -258,9 +260,9 @@ Function Set-PersistentData {
                     }
                     
                     $Script:PDSettings.Data.$Vault.$Name.Type = $ThisType
-                    if ($ThisType -eq "DateTime") {
-                        $Script:PDSettings.Data.$Vault.$Name.Value = $Value.DateTime
-                    }
+                    # if ($ThisType -eq "DateTime") {
+                    #     $Script:PDSettings.Data.$Vault.$Name.Value = $Value.DateTime
+                    # }
                     $Script:PDSettings.Data.$Vault.$Name.Scope = $Scope
                     $update = $true
                     Set-Variable -Name $Name -Value $Script:PDSettings.Data.$Vault.$Name.Value -Scope $Scope
@@ -273,10 +275,9 @@ Function Set-PersistentData {
                     Switch ($ThisType) {
                         "int"    {$Script:PDSettings.Data.$Vault.$Name.Value -= $Value}
                         Default {
-                            if ($Script:PDSettings.Data.$Vault.$Name.Value |? {$_ -eq $Value} ) {
-                                $Script:PDSettings.Data.$Vault.$Name.Value = ( ( $Script:PDSettings.Data.$Vault.$Name.Value | ?{ $_ -ne $Value } ) -as $Script:PDSettings.Data.$Vault.$Name.Type ) 
+                            if ($Script:PDSettings.Data.$Vault.$Name.Value | Where-Object {$_ -eq $Value} ) {
+                                $Script:PDSettings.Data.$Vault.$Name.Value = ( ( $Script:PDSettings.Data.$Vault.$Name.Value | Where-Object { $_ -ne $Value } ) -as $Script:PDSettings.Data.$Vault.$Name.Type ) 
                             } else {Write-Error "Value is incorrect, watching for equal value to remove."}
-                            
                         }
                     }
                     $Script:PDSettings.Data.$Vault.$Name.Scope = $Scope
@@ -327,7 +328,7 @@ Function Write-PersistentData {
         foreach ($Key in $data.Keys) {
             $Props = $data.$Key.Keys
             $hash = @{}
-            if ($data.$key.Value.GetType().Name -eq "DateTime" -and $data.$key.Value.Type -eq "DateTime") { 
+            if ($data.$key.Value.GetType().Name -eq "DateTime" -and $data.$key.Type -eq "DateTime") { 
                 $data.$key.Value = $data.$key.Value.ToUniversalTime()
             }
             foreach($Prop in $props) {
@@ -418,6 +419,24 @@ Function Update-PersistentData {
 }
 
 Function Show-PersistentData {
+    <#
+    .SYNOPSIS
+    Display all saved variables in PersistentData
+    .EXAMPLE
+    Show-PersistentData
+
+    WARNING: Containing inside of PDDefault
+
+    Value                                                                                                         Name           Scope  Type
+    -----                                                                                                         ----           -----  ----
+    2020-06-13 04:00:00                                                                                           EndOfSession   Global DateTime
+    {2020-05-20 onsdag 01:46, 2020-05-21 torsdag 07:01, 2020-05-25 måndag 00:00, 2020-06-10 onsdag 09:04}         WorkDays       Global String[]
+    {D:\A Bethesda\Launcher\games, D:\#SteamPowered\steamapps\common, D:\A Blizzard\Game, D:\A GOG\Galaxy\Games…} ListOfGames    Global String[]
+    07:08                                                                                                         SessionOnline  Global String
+    5                                                                                                             WorkDaysToKeep Global Int32
+    1                                                                                                             PDVersion      Local  INT
+    2020-06-12 07:53:57                                                                                           StartOfSession Global DateTime
+    #>
     [CmdletBinding()]
     Param(
         [Parameter(ValueFromPipeline,ValueFromPipelineByPropertyName)]
@@ -535,6 +554,12 @@ End{}
 # Update all variables
 
 Function Start-PersistentDataJobs {
+    <#
+    .SYNOPSIS
+    This is to help you to insert startup background jobs on every PS instance
+    .EXAMPLE
+    Start-PersistentDataJobs -StartWatcher
+    #>
     [CmdletBinding(SupportsShouldProcess,DefaultParameterSetName="Woop")]
     Param(
         [ValidateNotNullOrEmpty()]

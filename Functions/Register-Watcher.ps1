@@ -2,6 +2,12 @@
 #    $WhoWatchesTheWatchers = @()
 #}
 Function Register-Watcher {
+    <#
+    .SYNOPSIS
+    Instead of start-job in a sub-instance, it will do all on this, practical for displaying or executing stuff constantly
+    .EXAMPLE
+    Register-Watcher -folder (Split-Path $Path -Parent) -Filter (Split-Path $path -Leaf) -ActionChanged ([scriptblock]::Create("start-sleep -m 15 ; Update-PersistentData")) -Quiet
+    #>
     param(
         [ValidateNotNullOrEmpty()]
         [ValidateScript({(Test-Path $_ -IsValid ) -and (Get-Item $_ ).PSIsContainer})]
