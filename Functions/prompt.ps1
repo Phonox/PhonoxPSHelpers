@@ -27,7 +27,6 @@ Function Global:prompt {
         $Script:NewDay = $false
         Prompt_SessionStart
 
-        Prompt_Provider
         Prompt_ColorizePWD
         Prompt_Seperator
         Prompt_time
@@ -37,11 +36,15 @@ Function Global:prompt {
         Prompt_week
         Prompt_NewLine
         Prompt_MotD
-        Prompt_DBG
         Prompt_ADM
-        Encapture-Word -word "H:$( (Get-History).count)" -color1 (Prompt_BoolLastCommand Green Red) yellow
-        Encapture-Word -word "E:$($error.count)" -color1 (Prompt_BoolLastCommand Green Red) yellow
-        # Prompt_Versioning
+        Prompt_Provider
+        Prompt_DBG
+        
+        $HistoryCount = (Get-History).count
+        Encapture-Word -word "H`:$HistoryCount" -color1 (Prompt_BoolLastCommand Green Red) yellow
+        $ErrorCount = $Global:Error.Count
+        Encapture-Word -word "E`:$ErrorCount" -color1 (Prompt_BoolLastCommand Green Red) yellow
+        # Prompt_Versioning5
         Prompt_NestedLevel (Prompt_BoolLastCommand Cyan Red)
         #$PPend = get-date # EXTRA
         #([int]($PPend - $PPstart).TotalMilliseconds).ToString() # EXTRA
@@ -115,7 +118,7 @@ function Prompt_Provider {
 function Prompt_ADM {
     param ([ConsoleColor]$color1 = "Gray",[ConsoleColor]$color2 = "Red")
     #if ( [bool](([System.Security.Principal.WindowsIdentity]::GetCurrent()).groups -match "S-1-5-32-544") )
-    if ( $IsWindows ){
+    if ( $IsWindows -or [bool]( get-command Get-WindowsEdition -ea ignore )){
         If ( ( [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator") )
         {
             Encapture-Word -word ADM -color1 $color1 -color2 $color2
@@ -186,7 +189,7 @@ function Prompt_SessionOnline {
 }
 
 Function Encapture-Word {
-    Param ( $word , [ConsoleColor]$color1,[ConsoleColor]$color2)
+    Param ( [string]$word , [ConsoleColor]$color1,[ConsoleColor]$color2)
     Write-Host -NoNewline -ForegroundColor $color1 "["
     Write-Host -NoNewline -ForegroundColor $color2 $word
     Write-Host -NoNewline -ForegroundColor $color1 "]"
@@ -194,9 +197,9 @@ Function Encapture-Word {
 
 function Prompt_Versioning {
     Param ( $word , [ConsoleColor]$color1="Yellow",[ConsoleColor]$color2="Green")
-    if ( (ls -Directory -Force | Select-Object -ExpandProperty name) -in ".git") {
+    if ( (Get-ChildItem -Directory -Force | Select-Object -ExpandProperty name) -in ".git") {
         Encapture-Word -word GIT -color1 $color1 -color2 $color2
-    }elseif ( (ls -Directory -Force | Select-Object -ExpandProperty name) -in ".svn") {
+    }elseif ( (Get-ChildItem -Directory -Force | Select-Object -ExpandProperty name) -in ".svn") {
         Encapture-Word -word SVN -color1 $color1 -color2 $color2
     }
 }

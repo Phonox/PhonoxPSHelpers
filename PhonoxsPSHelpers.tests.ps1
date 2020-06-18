@@ -13,9 +13,9 @@ $TestFolderPath = Join-Path $ScriptPath "OldStuff"
 
 if ( !(Get-Module $modulename) ) { 
     Import-Module $ScriptPath -Force ; 
-    $imported = $true 
+    #$imported = $true 
 }else {
-    $imported = $false
+    #$imported = $false
     Remove-Module $modulename
     Import-Module $ScriptPath
 }
