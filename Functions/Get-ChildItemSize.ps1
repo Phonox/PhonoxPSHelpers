@@ -7,7 +7,8 @@ Function Get-ChildItemSize {
     [Alias("lss")]
     Param(
         [Parameter(ValueFromPipeline,ValueFromPipelineByPropertyName)]
-        [string[]]$Path = ".\"
+        [string[]]$Path = ".\",
+        [switch]$HumanReadable
     )
     Begin{
         # COULD PUT THIS TO THE IMPORT OF THE MODULE! Update-FormatData -PrependPath @org
@@ -29,11 +30,17 @@ Function Get-ChildItemSize {
     }
     Process{
         Foreach ($P in $Path ) {
-        $PSBoundParameters.Path = $p
+            $PSBoundParameters.Remove( 'HumanReadable' ) | Out-Null
+            $PSBoundParameters.Path = $p
             Get-ChildItem @PSBoundParameters | ForEach-Object {
                 if( $_.Attributes -like "*Directory*" ){ 
                     $Size = (Get-ChildItem $_.Fullname -Recurse -Force -ea Ignore -File| Measure-Object Length -sum | Select-Object -ExpandProperty sum )
                     if (!$size){$size = 0}
+                    else {
+                        if ($HumanReadable) {
+                            $size = (Format-FileSize $size)
+                        }
+                    }
                     Add-Member -InputObject $_ -MemberType NoteProperty -Name 'Length' -Value $size
                     $_
                 } else{$_}
