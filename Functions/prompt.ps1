@@ -27,6 +27,7 @@ Function Global:prompt {
         $Script:NewDay = $false
         Prompt_SessionStart
 
+        Prompt_Provider
         Prompt_ColorizePWD
         Prompt_Seperator
         Prompt_time
@@ -34,12 +35,17 @@ Function Global:prompt {
         Prompt_SessionOnline
         Prompt_Seperator
         Prompt_week
-        Prompt_NewLine
-        Prompt_MotD
-        Prompt_ADM
-        Prompt_Provider
-        Prompt_DBG
         
+        # New Row
+        Prompt_MotD
+
+        # New Row
+        Prompt_NewLine
+        Prompt_ADM
+        Prompt_DBG
+        if ( $Global:OnBreak ) {
+            Encapture-Word -word "ONBREAK" -color1 (Prompt_BoolLastCommand Green Red) yellow
+        }
         $HistoryCount = (Get-History).count
         Encapture-Word -word "H`:$HistoryCount" -color1 (Prompt_BoolLastCommand Green Red) yellow
         $ErrorCount = $Global:Error.Count
@@ -147,7 +153,7 @@ Function Prompt_SessionStart {
         if ( !$global:StartOfSession -or !$global:EndOfSession -or $PPstart -gt $global:EndOfSession ) {
             Update-PersistentData -ErrorAction SilentlyContinue
             if ( !$global:StartOfSession -or !$global:EndOfSession -or $PPstart -gt $global:EndOfSession ) {
-                if ($global:SessionOnline -and $global:StartOfSession ) {
+                if ( $global:SessionOnline -and $global:StartOfSession ) {
                     $Script:LastDay = "{0:yyyy}-{0:MM}-{0:dd} {0:dddd} {1}" -f $global:StartOfSession,$global:SessionOnline
                 } else { } # Requires sessions to be live 24/7 :(
                 $Script:NewDay = $true
@@ -216,6 +222,7 @@ Function Prompt_week {
 }
 Function Prompt_MotD {
     if ($Script:NewDay){
+        Prompt_NewLine
         Prompt_NewDay $LastDay
         if (    $global:StartOfSession.Hour -le 11) { Write-Host "Good morning" $env:USERNAME }
         elseif ($global:StartOfSession.Hour -le 16) { Write-Host "Good day" $env:USERNAME }

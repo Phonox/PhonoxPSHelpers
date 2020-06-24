@@ -33,17 +33,20 @@ Function Get-ChildItemSize {
             $PSBoundParameters.Remove( 'HumanReadable' ) | Out-Null
             $PSBoundParameters.Path = $p
             Get-ChildItem @PSBoundParameters | ForEach-Object {
-                if( $_.Attributes -like "*Directory*" ){ 
+                if( Check-FileAttributes $_.Attributes -ShouldContain Directory ){ 
                     $Size = (Get-ChildItem $_.Fullname -Recurse -Force -ea Ignore -File| Measure-Object Length -sum | Select-Object -ExpandProperty sum )
                     if (!$size){$size = 0}
-                    else {
-                        if ($HumanReadable) {
-                            $size = (Format-FileSize $size)
-                        }
+                    if ($HumanReadable) {
+                        $size = (Format-FileSize $size)
                     }
-                    Add-Member -InputObject $_ -MemberType NoteProperty -Name 'Length' -Value $size
+                    Add-Member -InputObject $_ -MemberType NoteProperty -Name 'Length' -Value $size -Force
                     $_
-                } else{$_}
+                } else{
+                    if ($HumanReadable) {
+                        Add-Member -InputObject $_ -MemberType NoteProperty -Name 'Length' -Value (Format-FileSize $_.Length) -Force
+                    }
+                    $_
+                }
             }
         }
     }

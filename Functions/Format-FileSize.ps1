@@ -14,7 +14,7 @@ Function Format-FileSize {
         ElseIf ($Length -gt 1MB) {[string]::Format("{0:0.00} MB", $Length / 1MB)}
         ElseIf ($Length -gt 1KB) {[string]::Format("{0:0.00} kB", $Length / 1KB)}
         ElseIf ($Length -gt 0)   {[string]::Format("{0:0.00} B", $Length)}
-        Else                   {""}
+        Else                     {$Length}
     }
 }
 Export-ModuleMember -Function Format-FileSize
