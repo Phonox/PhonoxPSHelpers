@@ -60,16 +60,17 @@ Function Global:prompt {
     }
 }
 
-function Prompt_NewDay{
+function Prompt_NewDay {
     Param(
         $day,
         $keep = $WorkDaysToKeep
     )
     if ($Script:NewDay) {
-        if(!$keep) { Set-PersistentData WorkDaysToKeep 5}
+        if (!$keep) { Set-PersistentData WorkDaysToKeep 5 }
         if (!$WorkDays) {
             Set-PersistentData WorkDays $day
-        }else {
+        }
+        else {
             if ($WorkDays.count -gt $keep) {
                 Set-PersistentData -Subtract WorkDays $WorkDays[0]
             }
@@ -82,11 +83,11 @@ function Prompt_BoolLastCommand {
     Param(
         $Good = "blue",
         [ConsoleColor]$Bad = "Red"
-)
+    )
     if ( $Script:LastRunCommand -eq 'True' ) { $Good } else { $Bad }
 }
 
-function Prompt_SetLastRunCommand {$Script:LastRunCommand = $? ; $Script:addSeperator = $false}
+function Prompt_SetLastRunCommand { $Script:LastRunCommand = $? ; $Script:addSeperator = $false }
 
 function Prompt_ColorizePWD {
     Param (
@@ -94,47 +95,46 @@ function Prompt_ColorizePWD {
         [ConsoleColor]$Color2 = "white"
     )
     ($pwd -split '\\').foreach{
-            Write-Host -ForegroundColor $Color1 $_ -NoNewline
-            Write-Host -ForegroundColor $Color2 "\" -NoNewline
-        }
+        Write-Host -ForegroundColor $Color1 $_ -NoNewline
+        Write-Host -ForegroundColor $Color2 "\" -NoNewline
+    }
     $Script:addSeperator = $true
 }
 
 function Prompt_NestedLevel {
-    param ([ConsoleColor]$ForegroundColor = "Cyan",[switch]$NewLine)
+    param ([ConsoleColor]$ForegroundColor = "Cyan", [switch]$NewLine)
     $data = @{}
     $data.Object = "$('>' * ($nestedPromptLevel + 1))"
     $data.NoNewline = (!$NewLine)
-    if ($ForegroundColor) {$data.ForegroundColor = $ForegroundColor}
+    if ($ForegroundColor) { $data.ForegroundColor = $ForegroundColor }
     Write-Host @data
 }
 
 function Prompt_DBG {
-    param ([ConsoleColor]$color1 = "Gray",[ConsoleColor]$color2 = "Red")
+    param ([ConsoleColor]$color1 = "Gray", [ConsoleColor]$color2 = "Red")
     if ($PsDebugContext ) {
         Encapture-Word -word DBG -color1 $color1 -color2 $color2
     }
 }
 
 function Prompt_Provider {
-    param ([ConsoleColor]$color1 = "Gray",[ConsoleColor]$color2 = "Red")
-    Encapture-Word -word ($PWD.Provider.Name -replace "FileSystem","FS" -replace "Registry","Reg" -replace "Certificate","Cert") -color1 $color1 -color2 $color2
+    param ([ConsoleColor]$color1 = "Gray", [ConsoleColor]$color2 = "Red")
+    Encapture-Word -word ($PWD.Provider.Name -replace "FileSystem", "FS" -replace "Registry", "Reg" -replace "Certificate", "Cert") -color1 $color1 -color2 $color2
 }
 
 function Prompt_ADM {
-    param ([ConsoleColor]$color1 = "Gray",[ConsoleColor]$color2 = "Red")
+    param ([ConsoleColor]$color1 = "Gray", [ConsoleColor]$color2 = "Red")
     #if ( [bool](([System.Security.Principal.WindowsIdentity]::GetCurrent()).groups -match "S-1-5-32-544") )
-    if ( $IsWindows -or [bool]( get-command Get-WindowsEdition -ea ignore )){
-        If ( ( [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator") )
-        {
+    if ( $IsWindows -or [bool]( get-command Get-WindowsEdition -ea ignore )) {
+        If ( ( [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator") ) {
             Encapture-Word -word ADM -color1 $color1 -color2 $color2
         }
     }
 }
 
 function Prompt_Seperator {
-    Param( [string]$Delimiter=" | ", [ConsoleColor]$ForegroundColor = 'white' )
-    if ($Script:addSeperator){
+    Param( [string]$Delimiter = " | ", [ConsoleColor]$ForegroundColor = 'white' )
+    if ($Script:addSeperator) {
         Write-Host $Delimiter -ForegroundColor $ForegroundColor -NoNewline
         $Script:addSeperator = $false
     }
@@ -154,16 +154,17 @@ Function Prompt_SessionStart {
             Update-PersistentData -ErrorAction SilentlyContinue
             if ( !$global:StartOfSession -or !$global:EndOfSession -or $PPstart -gt $global:EndOfSession ) {
                 if ( $global:SessionOnline -and $global:StartOfSession ) {
-                    $Script:LastDay = "{0:yyyy}-{0:MM}-{0:dd} {0:dddd} {1}" -f $global:StartOfSession,$global:SessionOnline
-                } else { } # Requires sessions to be live 24/7 :(
+                    $Script:LastDay = "{0:yyyy}-{0:MM}-{0:dd} {0:dddd} {1}" -f $global:StartOfSession, $global:SessionOnline
+                }
+                else { } # Requires sessions to be live 24/7 :(
                 $Script:NewDay = $true
                 $list = @( @{
-                    Name = "StartOfSession"
-                    Value = $PPstart
-                },@{
-                    Name = "EndOfSession"
-                    Value = $( (get-date -Hour 4 -date $PPstart.Date.AddDays(1) ) )
-                } )
+                        Name  = "StartOfSession"
+                        Value = $PPstart
+                    }, @{
+                        Name  = "EndOfSession"
+                        Value = $( (get-date -Hour 4 -date $PPstart.Date.AddDays(1) ) )
+                    } )
                 foreach ( $splat in $list ) {
                     Set-PersistentData @splat
                 }
@@ -171,8 +172,9 @@ Function Prompt_SessionStart {
                 # Set-PersistentData EndOfSession ( get-date -Hour 4 -date $PPstart.Date.AddDays(1) )
             }
         }
-    }Catch {}
-    Finally{$ErrorActionPreference = $ea}
+    }
+    Catch {}
+    Finally { $ErrorActionPreference = $ea }
 }
 
 function Prompt_SessionOnline {
@@ -184,7 +186,8 @@ function Prompt_SessionOnline {
     #if ( $outputType -eq "TimeSinceStart" ) {
     if ($global:StartOfSession.GetType().name -ne 'DateTime' ) {
         $total = ($PPstart - (Get-date $global:StartOfSession ) ) 
-    }else{ $total = ($PPstart - $global:StartOfSession ) }
+    }
+    else { $total = ($PPstart - $global:StartOfSession ) }
     $global:SessionOnline = "{0:hh}:{0:mm}" -f $total
     Write-Host "S$global:SessionOnline" -NoNewline -ForegroundColor $ForegroundColor
     Set-PersistentData SessionOnline $global:SessionOnline
@@ -195,17 +198,18 @@ function Prompt_SessionOnline {
 }
 
 Function Encapture-Word {
-    Param ( [string]$word , [ConsoleColor]$color1,[ConsoleColor]$color2)
+    Param ( [string]$word , [ConsoleColor]$color1, [ConsoleColor]$color2)
     Write-Host -NoNewline -ForegroundColor $color1 "["
     Write-Host -NoNewline -ForegroundColor $color2 $word
     Write-Host -NoNewline -ForegroundColor $color1 "]"
 }
 
 function Prompt_Versioning {
-    Param ( $word , [ConsoleColor]$color1="Yellow",[ConsoleColor]$color2="Green")
+    Param ( $word , [ConsoleColor]$color1 = "Yellow", [ConsoleColor]$color2 = "Green")
     if ( (Get-ChildItem -Directory -Force | Select-Object -ExpandProperty name) -in ".git") {
         Encapture-Word -word GIT -color1 $color1 -color2 $color2
-    }elseif ( (Get-ChildItem -Directory -Force | Select-Object -ExpandProperty name) -in ".svn") {
+    }
+    elseif ( (Get-ChildItem -Directory -Force | Select-Object -ExpandProperty name) -in ".svn") {
         Encapture-Word -word SVN -color1 $color1 -color2 $color2
     }
 }
@@ -221,7 +225,7 @@ Function Prompt_week {
     Write-Host "W$week" -NoNewline
 }
 Function Prompt_MotD {
-    if ($Script:NewDay){
+    if ($Script:NewDay) {
         Prompt_NewLine
         Prompt_NewDay $LastDay
         if (    $global:StartOfSession.Hour -le 11) { Write-Host "Good morning" $env:USERNAME }

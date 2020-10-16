@@ -6,17 +6,18 @@ Function Get-ChildItemSize {
     [CmdletBinding(SupportsShouldProcess)]
     [Alias("lss")]
     Param(
-        [Parameter(ValueFromPipeline,ValueFromPipelineByPropertyName)]
+        [Parameter(ValueFromPipeline, ValueFromPipelineByPropertyName)]
         [string[]]$Path = ".\",
-        [switch]$HumanReadable
+        [switch]$HumanReadable,
+        [Switch]$Force
     )
-    Begin{
+    Begin {
         # COULD PUT THIS TO THE IMPORT OF THE MODULE! Update-FormatData -PrependPath @org
         # Got some EPIC help from /u/brolifen @reddit
         $FormatXml = "$PSScriptRoot\..\ps1xml\FileSystem.format.ps1xml"
         $org = "$pshome\FileSystem.format.ps1xml"
         if ( !(test-path $FormatXml) ) {
-            if ( !(Test-Path $org) ) {Write-Error -ErrorAction stop "File cannot be found: $org" }
+            if ( !(Test-Path $org) ) { Write-Error -ErrorAction stop "File cannot be found: $org" }
             if ( !(test-path (Split-Path $FormatXml) ) ) {
                 mkdir -Force (Split-Path $FormatXml)
             }
@@ -28,29 +29,32 @@ Function Get-ChildItemSize {
         #Update-FormatData -PrependPath $org  #does not work correctly
         #Update-FormatData -PrependPath @orgi #does not work correctly
     }
-    Process{
+    Process {
         Foreach ($P in $Path ) {
             $PSBoundParameters.Remove( 'HumanReadable' ) | Out-Null
             $PSBoundParameters.Path = $p
             Get-ChildItem @PSBoundParameters | ForEach-Object {
-                if( Check-FileAttributes $_.Attributes -ShouldContain Directory ){ 
-                    $Size = (Get-ChildItem $_.Fullname -Recurse -Force -ea Ignore -File| Measure-Object Length -sum | Select-Object -ExpandProperty sum )
-                    if (!$size){$size = 0}
+                if ( Check-FileAttributes $_.Attributes -ShouldContain Directory ) { 
+                    $Size = (Get-ChildItem $_.Fullname -Recurse -Force -ea Ignore -File | Measure-Object Length -sum | Select-Object -ExpandProperty sum )
+                    if (!$size) { $size = 0 }
                     if ($HumanReadable) {
                         $size = (Format-FileSize $size)
+                        Add-Member -InputObject $_ -MemberType NoteProperty -Name 'Length' -Value $size -Force # -SecondValue $_.Length
+                    } else {
+                        Add-Member -InputObject $_ -MemberType NoteProperty -Name 'Length' -Value $size -Force
                     }
-                    Add-Member -InputObject $_ -MemberType NoteProperty -Name 'Length' -Value $size -Force
                     $_
-                } else{
+                }
+                else {
                     if ($HumanReadable) {
-                        Add-Member -InputObject $_ -MemberType NoteProperty -Name 'Length' -Value (Format-FileSize $_.Length) -Force
+                        Add-Member -InputObject $_ -MemberType NoteProperty -Name 'Length' -Value (Format-FileSize $_.Length) -Force #-SecondValue $_.Length
                     }
                     $_
                 }
             }
         }
     }
-    End{       
+    End {       
     }
 }
 

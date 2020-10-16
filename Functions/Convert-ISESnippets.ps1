@@ -15,7 +15,7 @@ Function Convert-ISESnippets {
     #>
     [CmdletBinding(SupportsShouldProcess)]
     Param(
-        [Parameter(ValueFromPipeline,ValueFromPipelineByPropertyName)]
+        [Parameter(ValueFromPipeline, ValueFromPipelineByPropertyName)]
         [string[]]
         [ValidateNotNullOrEmpty()]
         #[Alias("PSPath")]
@@ -31,12 +31,12 @@ Function Convert-ISESnippets {
     Process {
         $Pathss = @(Convert-Path $Paths)
         foreach ($Path in $pathss ) {
-            if (Check-FileAttributes $Path Directory) { $ProcessFiles += Get-ChildItem -Force $Path |Where-Object { $_.Name -match 'ps1xml$' }  }
-            elseif ( $Path -match  'ps1xml$' ) { $ProcessedFiles += $Path }
-            else { Write-Error "Files is not correct file format: $Path"}
+            if (Check-FileAttributes $Path Directory) { $ProcessFiles += Get-ChildItem -Force $Path | Where-Object { $_.Name -match 'ps1xml$' } }
+            elseif ( $Path -match 'ps1xml$' ) { $ProcessedFiles += $Path }
+            else { Write-Error "Files is not correct file format: $Path" }
         }
         Foreach ($Path in $ProcessFiles) {
-            if (! (Test-path $Path) ) { Write-Error "file path is non existing: $Path"}
+            if (! (Test-path $Path) ) { Write-Error "file path is non existing: $Path" }
             [xml]$Content = Get-Content $Path -Raw -force
             $body = $Content.snippets.snippet.code.script."#cdata-section" -split "`r?`n" # splitting for readability
             $Snippet = @{}
@@ -44,25 +44,27 @@ Function Convert-ISESnippets {
             $Snippet.$title = @{}
             $Snippet.$title.description = $Content.snippets.snippet.header.Description
             $Snippet.$title.scope = "powershell"
-            $itemsToAddToPrefix = ( ( $title -replace '-',' ' ), ( ($title -replace 'version' -split '\W' |Select-Object -skip 1 | Where-Object { $_ }) -join ',' ) -join ',' ) -split ","
-            $Snippet.$title.prefix =  $itemsToAddToPrefix
-            $Snippet.$title.body = $body -replace "\$","\$"
+            $itemsToAddToPrefix = ( ( $title -replace '-', ' ' ), ( ($title -replace 'version' -split '\W' | Select-Object -skip 1 | Where-Object { $_ }) -join ',' ) -join ',' ) -split ","
+            $Snippet.$title.prefix = $itemsToAddToPrefix
+            $Snippet.$title.body = $body -replace "\$", "\$"
             $JsonSnippet = $Snippet | ConvertTo-Json
             
             #Test
             $JsonSnippet | ConvertFrom-Json | Out-Null
             
-            $FileName = (Split-Path -Leaf $Path) -replace 'ps1xml$','code-snippets'
+            $FileName = (Split-Path -Leaf $Path) -replace 'ps1xml$', 'code-snippets'
             if (!$Destination) {
                 $NewPath = Join-Path (Convert-Path (Split-Path -Parent $Path) ) $FileName
-            }else{
+            }
+            else {
                 $NewPath = Join-Path (Convert-Path $Destination ) $FileName
             }
             $Proceed = $true
             if (test-path $NewPath) {
                 if ( $PSCmdlet.ShouldProcess($NewPath, "Overwrite") ) {
                     $Proceed = $true
-                }else {
+                }
+                else {
                     $Proceed = $false
                 }
             }
@@ -72,7 +74,7 @@ Function Convert-ISESnippets {
             }
         }
     }
-    End{
+    End {
         Write-Host "Processed $ProcessedFiles files."
     }
 }

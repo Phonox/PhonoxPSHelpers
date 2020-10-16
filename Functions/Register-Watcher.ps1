@@ -10,7 +10,7 @@ Function Register-Watcher {
     #>
     param(
         [ValidateNotNullOrEmpty()]
-        [ValidateScript({(Test-Path $_ -IsValid ) -and (Get-Item $_ ).PSIsContainer})]
+        [ValidateScript( { (Test-Path $_ -IsValid ) -and (Get-Item $_ ).PSIsContainer })]
         $Folder,
         $Filter = "*.*",
         [scriptblock]$ActionChanged,
@@ -24,10 +24,10 @@ Function Register-Watcher {
         #$fileChange = [Enum]::GetValues([system.io.WatcherChangeTypes])
     }
     Process {
-        if (!$ActionChanged -and !$ActionCreated -and !$ActionDeleted -and !$ActionRenamed -and !$ActionAll){"Missing Scriptblock!" ; break}
-        [System.IO.FileSystemWatcher]$watcher = New-object IO.FileSystemWatcher $folder,$filter -property @{
+        if (!$ActionChanged -and !$ActionCreated -and !$ActionDeleted -and !$ActionRenamed -and !$ActionAll) { "Missing Scriptblock!" ; break }
+        [System.IO.FileSystemWatcher]$watcher = New-object IO.FileSystemWatcher $folder, $filter -property @{
             IncludeSubDirectories = $true
-            EnableRaisingEvents = $true
+            EnableRaisingEvents   = $true
         } #NotifyFilter = [IO.NotifyFilters]'FileName, LastWrite, DirectoryName'
         #if ($ActionChanged) {$watcher.Changed += $ActionChanged}
         #if ($ActionCreated) {$watcher.Created += $ActionCreated}
@@ -75,13 +75,13 @@ Function Register-Watcher {
         }
         ")
         
-        if     ($ActionChanged) {Register-ObjectEvent $watcher "Changed" -Action $changeAction } # -SourceIdentifier "FileChanged" }
-        elseif ($ActionCreated) {Register-ObjectEvent $watcher "Created" -Action $changeAction } # -SourceIdentifier "FileCreated" }
-        elseif ($ActionDeleted) {Register-ObjectEvent $watcher "Deleted" -Action $changeAction } # -SourceIdentifier "FileDeleted" }
-        elseif ($ActionRenamed) {Register-ObjectEvent $watcher "Renamed" -Action $changeAction } # -SourceIdentifier "FileRenamed" }
-        elseif ($ActionAll)     {Register-ObjectEvent $watcher "Changed" -Action $changeAction } # -SourceIdentifier "FileRenamed" }
+        if ($ActionChanged) { Register-ObjectEvent $watcher "Changed" -Action $changeAction } # -SourceIdentifier "FileChanged" }
+        elseif ($ActionCreated) { Register-ObjectEvent $watcher "Created" -Action $changeAction } # -SourceIdentifier "FileCreated" }
+        elseif ($ActionDeleted) { Register-ObjectEvent $watcher "Deleted" -Action $changeAction } # -SourceIdentifier "FileDeleted" }
+        elseif ($ActionRenamed) { Register-ObjectEvent $watcher "Renamed" -Action $changeAction } # -SourceIdentifier "FileRenamed" }
+        elseif ($ActionAll) { Register-ObjectEvent $watcher "Changed" -Action $changeAction } # -SourceIdentifier "FileRenamed" }
     }
-    End{}
+    End {}
 }
 
 Export-ModuleMember -function Register-Watcher

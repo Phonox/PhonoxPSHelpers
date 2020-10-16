@@ -1,13 +1,14 @@
 ﻿#region setup
 # Right now vault could be the same as path, but might work on these things later
-$Encoding  = "UTF8"
+$Encoding = "UTF8"
 $PDDefaultVault = 'PDDefault'
 if (!$ENV:Appdata) { $ENV:Appdata = ( [Environment]::GetFolderPath('ApplicationData') ) } # quickfix for MacOS
 $PDDefaultPath = (Join-Path $ENV:Appdata "PDDefault.json")
+$PDDefaultRemove = 'PDDefaultRemove'
 #$PDDefaultPath = (Join-Path $env:TEMP "PDDefault.json")
 #endregion
 Function Get-PersistentData {
-<#
+    <#
 .SYNOPSIS
     This is an internal helper for PD, will not be exported
 #>
@@ -27,16 +28,16 @@ Function Get-PersistentData {
         Write-Verbose "Start of Get-PersistentData"
         $First = $null
     }
-    Process{
+    Process {
         if ($first -ne $Vault) {
             #$date = ([DateTime]::now).AddMilliseconds(25)
             #until ( (Test-Path $path) -or $Date -lt ([DateTime]::now)) { } # just wait
 
-            if ( !(Test-Path $path) ) {Write-Warning "File Missing! $Path" ; New-PersistentDataFile $Path -Confirm:$true }
+            if ( !(Test-Path $path) ) { Write-Warning "File Missing! $Path" ; New-PersistentDataFile $Path -Confirm:$true }
             #$List = @( Get-Content $Path -Raw -Encoding $Encoding | ConvertFrom-Json -EA Continue) -as [System.Collections.ArrayList] | 
             $List = @( Get-Content $Path -Raw -Encoding $Encoding -Force | ConvertFrom-Json -EA Continue ) | 
             ForEach-Object {
-                if ($_.Scope -match "\w") { $_ } else {Throw "File is incomparable" }
+                if ($_.Scope -match "\w") { $_ } else { Throw "File is incomparable" }
             }
             
             if ( !$list -or !$Script:PDSettings -or $Script:PDSettings.GetType().ToString() -ne "HashTable") {
@@ -55,9 +56,14 @@ Function Get-PersistentData {
             }
             $Script:PDSettings.Data.$Vault = @{}
             $list.Where{ $_.Type -eq 'DateTime' }.foreach{ $_.Value = ($_.Value -as 'DateTime').ToLocalTime() }
+
+            # Remove unwanted variables from all powershell instances.
+            $removingThese,$list = $list.where({$_.Name -eq $PDDefaultRemove},"split")
+            ($PDDefaultRemove.Value | Sort-Object -Unique).Foreach{ Remove-Variable -ErrorAction Ignore -scope Global $_ }
+
             $Script:PDSettings.Vault.$Vault.List = $list
             if ($list) {
-                $Props = ( $list |Get-Member -MemberType NoteProperty -ErrorAction Stop ) -as [PSCustomObject] |select-Object -ExpandProperty Name
+                $Props = ( $list | Get-Member -MemberType NoteProperty -ErrorAction Stop ) -as [PSCustomObject] | select-Object -ExpandProperty Name
             }
             $Script:PDSettings.Data.$Vault = @{}
             $first = $Vault
@@ -77,39 +83,39 @@ Function Get-PersistentData {
     }
     End {
         #if ($Verbose) {
-            $end = [DateTime]::Now
-            Write-Verbose "Get-PersistentData took: $([int]($end - $start).TotalMilliseconds) ms"
+        $end = [DateTime]::Now
+        Write-Verbose "Get-PersistentData took: $([int]($end - $start).TotalMilliseconds) ms"
         #}
         Write-Verbose "End of Get-PersistentData"
     }
 }
 Function New-PersistentDataFile {
-    [CmdletBinding(SupportsShouldProcess,ConfirmImpact="High")]
+    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = "High")]
     Param([String]$Path)
-    Begin{
+    Begin {
         #$Verbose = $PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent
         #if ($Verbose) {
-            $start = [DateTime]::Now
+        $start = [DateTime]::Now
         #}
         Write-Verbose "Start of New-PersistentDataFile"
     }
-    Process{
-        if ( $PSCmdlet.ShouldProcess( $Path,"Create new file for PersistentData" ) ){
-            $json = @{Name="PDVersion";Value=1;Type="INT";Scope="Local"}
+    Process {
+        if ( $PSCmdlet.ShouldProcess( $Path, "Create new file for PersistentData" ) ) {
+            $json = @{Name = "PDVersion"; Value = 1; Type = "INT"; Scope = "Local" }
             $json | ConvertTo-Json | Out-File $Path -Force -Encoding $Encoding -Confirm:$false
         }
     }
-    End{
+    End {
         #if ($Verbose) { 
-            $end = [DateTime]::Now
-            Write-Verbose "New-PersistentDataFile took: $([int]($end - $start).TotalMilliseconds) ms"
+        $end = [DateTime]::Now
+        Write-Verbose "New-PersistentDataFile took: $([int]($end - $start).TotalMilliseconds) ms"
         #}
         Write-Verbose "End of New-PersistentDataFile"
     }
 }
 
 Function Set-PersistentData {
-<#
+    <#
 .SYNOPSIS
     This will save a variable to disk.
 .DESCRIPTION
@@ -136,69 +142,69 @@ Function Set-PersistentData {
 .LINK
     Remove-PersistentData
 #>
-    [CmdletBinding(SupportsShouldProcess,DefaultParameterSetName="Change")]
+    [CmdletBinding(SupportsShouldProcess, DefaultParameterSetName = "Change")]
     Param(
         [ValidateNotNullOrEmpty()]
-        [Parameter(Position=0,ValueFromPipelineByPropertyName,Mandatory,ParameterSetName='Change')]
-        [Parameter(Position=0,ValueFromPipelineByPropertyName,Mandatory,ParameterSetName='ChangeADD')]
-        [Parameter(Position=0,ValueFromPipelineByPropertyName,Mandatory,ParameterSetName='ChangeSUB')]
-        [Parameter(Position=0,ValueFromPipelineByPropertyName,Mandatory,ParameterSetName='Remove')]
+        [Parameter(Position = 0, ValueFromPipelineByPropertyName, Mandatory, ParameterSetName = 'Change')]
+        [Parameter(Position = 0, ValueFromPipelineByPropertyName, Mandatory, ParameterSetName = 'ChangeADD')]
+        [Parameter(Position = 0, ValueFromPipelineByPropertyName, Mandatory, ParameterSetName = 'ChangeSUB')]
+        [Parameter(Position = 0, ValueFromPipelineByPropertyName, Mandatory, ParameterSetName = 'Remove')]
         [string]$Name, # Change to dynamic
         
         [ValidateNotNullOrEmpty()]
-        [Parameter(Position=1,ValueFromPipeline,ValueFromPipelineByPropertyName,Mandatory,ParameterSetName='Change')]
-        [Parameter(Position=1,ValueFromPipeline,ValueFromPipelineByPropertyName,Mandatory,ParameterSetName='ChangeADD')]
-        [Parameter(Position=1,ValueFromPipeline,ValueFromPipelineByPropertyName,Mandatory,ParameterSetName='ChangeSUB')]
+        [Parameter(Position = 1, ValueFromPipeline, ValueFromPipelineByPropertyName, Mandatory, ParameterSetName = 'Change')]
+        [Parameter(Position = 1, ValueFromPipeline, ValueFromPipelineByPropertyName, Mandatory, ParameterSetName = 'ChangeADD')]
+        [Parameter(Position = 1, ValueFromPipeline, ValueFromPipelineByPropertyName, Mandatory, ParameterSetName = 'ChangeSUB')]
         $Value,
 
-        [Parameter(Position=3,ValueFromPipelineByPropertyName,ParameterSetName='Change')]
-        [Parameter(Position=3,ValueFromPipelineByPropertyName,ParameterSetName='ChangeADD')]
-        [Parameter(Position=3,ValueFromPipelineByPropertyName,ParameterSetName='ChangeSUB')]
-        [Parameter(Position=3,ValueFromPipelineByPropertyName,ParameterSetName='Remove')]
-        [ValidateSet("Global","Script","Local","Private")]
+        [Parameter(Position = 3, ValueFromPipelineByPropertyName, ParameterSetName = 'Change')]
+        [Parameter(Position = 3, ValueFromPipelineByPropertyName, ParameterSetName = 'ChangeADD')]
+        [Parameter(Position = 3, ValueFromPipelineByPropertyName, ParameterSetName = 'ChangeSUB')]
+        [Parameter(Position = 3, ValueFromPipelineByPropertyName, ParameterSetName = 'Remove')]
+        [ValidateSet("Global", "Script", "Local", "Private")]
         [string]$Scope = "Global",
 
-        [Parameter(Position=4,ValueFromPipelineByPropertyName,ParameterSetName='Change')]
-        [Parameter(Position=4,ValueFromPipelineByPropertyName,ParameterSetName='ChangeADD')]
-        [Parameter(Position=4,ValueFromPipelineByPropertyName,ParameterSetName='ChangeSUB')]
-        [Parameter(Position=4,ValueFromPipelineByPropertyName,ParameterSetName='Remove')]
+        [Parameter(Position = 4, ValueFromPipelineByPropertyName, ParameterSetName = 'Change')]
+        [Parameter(Position = 4, ValueFromPipelineByPropertyName, ParameterSetName = 'ChangeADD')]
+        [Parameter(Position = 4, ValueFromPipelineByPropertyName, ParameterSetName = 'ChangeSUB')]
+        [Parameter(Position = 4, ValueFromPipelineByPropertyName, ParameterSetName = 'Remove')]
         [ValidateNotNullOrEmpty()] # change to Dynamic variable...
         [string]
         $Vault = $PDDefaultVault,
 
-        [Parameter(ValueFromPipelineByPropertyName,ParameterSetName='Watcher')]
-        [Parameter(Position=5,ValueFromPipelineByPropertyName,ParameterSetName='Change')]
-        [Parameter(Position=5,ValueFromPipelineByPropertyName,ParameterSetName='ChangeADD')]
-        [Parameter(Position=5,ValueFromPipelineByPropertyName,ParameterSetName='ChangeSUB')]
-        [Parameter(Position=5,ValueFromPipelineByPropertyName,ParameterSetName='Remove')]
+        [Parameter(ValueFromPipelineByPropertyName, ParameterSetName = 'Watcher')]
+        [Parameter(Position = 5, ValueFromPipelineByPropertyName, ParameterSetName = 'Change')]
+        [Parameter(Position = 5, ValueFromPipelineByPropertyName, ParameterSetName = 'ChangeADD')]
+        [Parameter(Position = 5, ValueFromPipelineByPropertyName, ParameterSetName = 'ChangeSUB')]
+        [Parameter(Position = 5, ValueFromPipelineByPropertyName, ParameterSetName = 'Remove')]
         [ValidateNotNullOrEmpty()] # Change to Dynamic variable...
         [string]
         $Path = $PDDefaultPath,
 
                 
-        [Parameter(Position=2,ValueFromPipeline,ParameterSetName='ChangeADD')]
+        [Parameter(Position = 2, ValueFromPipeline, ParameterSetName = 'ChangeADD')]
         [switch]$Add,
-        [Parameter(Position=2,ValueFromPipeline,ParameterSetName='ChangeSUB')]
+        [Parameter(Position = 2, ValueFromPipeline, ParameterSetName = 'ChangeSUB')]
         [switch]$Subtract,
         
-        [Parameter(Position=1,ValueFromPipelineByPropertyName,Mandatory,ParameterSetName='Remove')]
+        [Parameter(Position = 1, ValueFromPipelineByPropertyName, Mandatory, ParameterSetName = 'Remove')]
         [switch]$Remove,
 
-        [Parameter(Position=0,ValueFromPipelineByPropertyName,ParameterSetName='Watcher')]
+        [Parameter(Position = 0, ValueFromPipelineByPropertyName, ParameterSetName = 'Watcher')]
         [switch]$StartWatcher,
-        [Parameter(Position=1,ValueFromPipelineByPropertyName,ParameterSetName='Watcher')]
+        [Parameter(Position = 1, ValueFromPipelineByPropertyName, ParameterSetName = 'Watcher')]
         [switch]$Quiet
     )
     Begin {
         #$Verbose = $PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent
         #if ($Verbose) {
-            $start = [DateTime]::Now
+        $start = [DateTime]::Now
         #}
         Write-Verbose "Start of Set-PersistentData"
         $First = $null
         
     }
-    Process{
+    Process {
         if ($First -ne $Vault) {
             Update-PersistentData -Vault $Vault -Path $Path
             $First = $Vault
@@ -206,13 +212,13 @@ Function Set-PersistentData {
             #Set-PersistentData PIDWrote $PID
         }
         switch ($PsCmdlet.ParameterSetName) {
-            "Change"    {
+            "Change" {
                 $ThisType = $Value.GetType().Name.ToString()
                 if (
                     !$Script:PDSettings.Data.$Vault.$Name -or # Variable does not exist
                     $Script:PDSettings.Data.$Vault.$Name.Scope -ne $Scope -or # Not the same scope
                     $Script:PDSettings.Data.$Vault.$Name.Type -ne $ThisType -or # Not the same type
-                    ($Script:PDSettings.Data.$Vault.$Name.Value|ConvertTo-Json) -ne ($Value|ConvertTo-Json) # not the save value, takes most time/cpu
+                    ($Script:PDSettings.Data.$Vault.$Name.Value | ConvertTo-Json) -ne ($Value | ConvertTo-Json) # not the save value, takes most time/cpu
                 ) {
                     # Procedure to add
                     Write-Verbose "Variable: $Name got new or changed Value"
@@ -222,21 +228,24 @@ Function Set-PersistentData {
                     $Script:PDSettings.Data.$Vault.$Name.Scope = $Scope
                     $update = $true
                     Set-Variable -Name $Name -Value $Script:PDSettings.Data.$Vault.$Name.Value -Scope $Scope
-                }else{
+                }
+                else {
                     #Add it
                     Set-Variable -Name $Name -Value $Script:PDSettings.Data.$Vault.$Name.Value -Scope $Scope
                 }
             }
-            "Watcher"   {
-                if (! (Get-EventSubscriber | Where-Object EventName -eq "Changed") ) { #quickfix
+            "Watcher" {
+                if (! (Get-EventSubscriber | Where-Object EventName -eq "Changed") ) {
+                    #quickfix
                     if (!$Quiet) { 
                         Register-Watcher -folder (Split-Path $Path -Parent) -Filter (Split-Path $path -Leaf) -ActionChanged ([scriptblock]::Create("start-sleep -m 15 ; Update-PersistentData")) -Quiet | Out-Null
-                    } else {
+                    }
+                    else {
                         Register-Watcher -folder (Split-Path $Path -Parent) -Filter (Split-Path $path -Leaf) -ActionChanged ([scriptblock]::Create("start-sleep -m 15 ; Update-PersistentData -verbose")) | Out-Null
                     }
                 }
             }
-            "Remove"    {
+            "Remove" {
                 $Script:PDSettings.Data.$Vault.Remove($Name)
                 Remove-Variable -Scope $Scope -Name $Name -ea Ignore
                 Write-Verbose "Removed variable: $Name"
@@ -246,15 +255,18 @@ Function Set-PersistentData {
                 # Variable does not exist
                 if ( !$Script:PDSettings.Data.$Vault.$Name) { 
                     Set-PersistentData -Name $Name -Value $Value
-                } else { # Variable Exist
+                }
+                else {
+                    # Variable Exist
                     if (!$Script:PDSettings.Data.$Vault.$Name.Type) {
                         $ThisType = $Value.GetType().Name.ToString()
-                    } else {
+                    }
+                    else {
                         $ThisType = $Script:PDSettings.Data.$Vault.$Name.Type
                     }
                     Switch ($ThisType) {
-                        "Int"    {$Script:PDSettings.Data.$Vault.$Name.Value += $Value}
-                        "String" { $ThisType = "$ThisType[]" ; $Script:PDSettings.Data.$Vault.$Name.Value = ( ( $Script:PDSettings.Data.$Vault.$Name.Value,$Value ) -as $ThisType ) }
+                        "Int" { $Script:PDSettings.Data.$Vault.$Name.Value += $Value }
+                        "String" { $ThisType = "$ThisType[]" ; $Script:PDSettings.Data.$Vault.$Name.Value = ( ( $Script:PDSettings.Data.$Vault.$Name.Value, $Value ) -as $ThisType ) }
                         #"DateTime" {} # might need to fix this
                         Default { $Script:PDSettings.Data.$Vault.$Name.Value = ( ( $Script:PDSettings.Data.$Vault.$Name.Value + $Value ) -as $ThisType ) }
                     }
@@ -270,14 +282,18 @@ Function Set-PersistentData {
             }
             "ChangeSUB" {
                 # variable does not exist
-                if ( !$Script:PDSettings.Data.$Vault.$Name ) {Write-Error "Missing variable" -ea Stop
-                }else { #Variable Exist
+                if ( !$Script:PDSettings.Data.$Vault.$Name ) {
+                    Write-Error "Missing variable" -ea Stop
+                }
+                else {
+                    #Variable Exist
                     Switch ($ThisType) {
-                        "int"    {$Script:PDSettings.Data.$Vault.$Name.Value -= $Value}
+                        "int" { $Script:PDSettings.Data.$Vault.$Name.Value -= $Value }
                         Default {
-                            if ($Script:PDSettings.Data.$Vault.$Name.Value | Where-Object {$_ -eq $Value} ) {
+                            if ($Script:PDSettings.Data.$Vault.$Name.Value | Where-Object { $_ -eq $Value } ) {
                                 $Script:PDSettings.Data.$Vault.$Name.Value = ( ( $Script:PDSettings.Data.$Vault.$Name.Value | Where-Object { $_ -ne $Value } ) -as $Script:PDSettings.Data.$Vault.$Name.Type ) 
-                            } else {Write-Error "Value is incorrect, watching for equal value to remove."}
+                            }
+                            else { Write-Error "Value is incorrect, watching for equal value to remove." }
                         }
                     }
                     $Script:PDSettings.Data.$Vault.$Name.Scope = $Scope
@@ -285,23 +301,23 @@ Function Set-PersistentData {
                     Set-Variable -Name $Name -Value $Script:PDSettings.Data.$Vault.$Name.Value -Scope $Scope
                 }
             }
-            Default {$PsCmdlet.ParameterSetName |ConvertTo-Json ; Write-Error "Not correct ParameterSetName" -ErrorAction Stop}
+            Default { $PsCmdlet.ParameterSetName | ConvertTo-Json ; Write-Error "Not correct ParameterSetName" -ErrorAction Stop }
         }
     }
-    End{
+    End {
         if ($Update) {
             Write-PersistentData -Data $Script:PDSettings.Data.$Vault -Path $Path -Vault $vault
         }
         #if ($Verbose) { 
-            $end = [DateTime]::Now
-            Write-Verbose "Set-PersistentData took: $([int]($end - $start).TotalMilliseconds) ms"
+        $end = [DateTime]::Now
+        Write-Verbose "Set-PersistentData took: $([int]($end - $start).TotalMilliseconds) ms"
         #}
         Write-Verbose "End of Set-PersistentData"
     }
 }
 
 Function Write-PersistentData {
-<#
+    <#
 .SYNOPSIS
     This is an internal helper for PD, will not be exported
 #>
@@ -314,12 +330,12 @@ Function Write-PersistentData {
     Begin {
         #$Verbose = $PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent
         #if ($Verbose) {
-            $start = [DateTime]::Now
+        $start = [DateTime]::Now
         #}
         Write-Verbose "Start of Write-PersistentData"
         $first = $null
     }
-    Process{
+    Process {
         # Rewrite hash to list
         if ($first -ne $vault) {
             $list = [System.Collections.ArrayList]@()
@@ -331,20 +347,20 @@ Function Write-PersistentData {
             if ($data.$key.Value.GetType().Name -eq "DateTime" -and $data.$key.Type -eq "DateTime") { 
                 $data.$key.Value = $data.$key.Value.ToUniversalTime()
             }
-            foreach($Prop in $props) {
+            foreach ($Prop in $props) {
                 $hash.$prop = $data.$key.$Prop
             }
             $hash.Name = $Key
-            $list.add([PSCustomObject]$hash) |Out-Null
+            $list.add([PSCustomObject]$hash) | Out-Null
         }
         $Script:PDSettings.Vault.$Vault.List = $list
 
-        Out-File -FilePath $path -Encoding $Encoding -Force -InputObject ($list|ConvertTo-Json)
+        Out-File -FilePath $path -Encoding $Encoding -Force -InputObject ($list | ConvertTo-Json)
     }
-    End{
+    End {
         #if ($Verbose) { 
-            $end = [DateTime]::Now
-            Write-Verbose "Write-PersistentData took: $([int]($end - $start).TotalMilliseconds) ms"
+        $end = [DateTime]::Now
+        Write-Verbose "Write-PersistentData took: $([int]($end - $start).TotalMilliseconds) ms"
         #}
         Write-Verbose "End of Write-PersistentData"
     }
@@ -372,23 +388,23 @@ Function Update-PersistentData {
     [CmdletBinding()]
     Param(
         [String]
-        $Path=$PDDefaultPath,
+        $Path = $PDDefaultPath,
 
         [String]
-        $Vault=$PDDefaultVault
+        $Vault = $PDDefaultVault
     )
     BEGIN {
         #$Verbose = $PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent
         #if ($Verbose) {
-            $start = [DateTime]::Now
+        $start = [DateTime]::Now
         #}
         Write-Verbose "Start of Update-PersistentData"
         $first = $null
     }
     Process {
         #if ($first -ne $Vault) { # Takes avg 4 ms
-            Get-PersistentData $Path $Vault
-            $first = $Vault
+        Get-PersistentData $Path $Vault
+        $first = $Vault
         #}
         # Update all values
         foreach ($Key in $Script:PDSettings.Data.$Vault.Keys) {
@@ -396,23 +412,24 @@ Function Update-PersistentData {
             $ThisVar = Get-Variable -Name $key -Scope $hash.scope -ea ignore
             # Check if the there are a variable, Same dataType, if it is or containts an array or hash of some kind, (NOT ADDED SCOPE CHECK)
             if (
-                    !$ThisVar -or # if variable exists
-                    $ThisVar.Gettype().Name.ToString() -ne $hash.Type -or # if the datatype is equal
-                    # Add scope check
-                    [bool](diff ($ThisVar|ConvertTo-Json) ($hash.value |ConvertTo-Json) ) # if there are a diff i value
-                ){
+                !$ThisVar -or # if variable exists
+                $ThisVar.Gettype().Name.ToString() -ne $hash.Type -or # if the datatype is equal
+                # Add scope check
+                [bool](diff ($ThisVar | ConvertTo-Json) ($hash.value | ConvertTo-Json) ) # if there are a diff i value
+            ) {
                 if ($hash.Scope) {
                     Set-Variable -Name $Key -Value $hash.Value -Scope $hash.Scope
-                }else {
+                }
+                else {
                     Set-Variable -Name $Key -Value $hash.Value -Scope Global
                 }
             }
         } # End of update
     }
-    END{
+    END {
         #if ($Verbose) { 
-            $end = [DateTime]::Now
-            Write-Verbose "Update-PersistentData took: $([int]($end - $start).TotalMilliseconds) ms"
+        $end = [DateTime]::Now
+        Write-Verbose "Update-PersistentData took: $([int]($end - $start).TotalMilliseconds) ms"
         #}
         Write-Verbose "End of Update-PersistentData"
     }
@@ -439,36 +456,36 @@ Function Show-PersistentData {
     #>
     [CmdletBinding()]
     Param(
-        [Parameter(ValueFromPipeline,ValueFromPipelineByPropertyName)]
+        [Parameter(ValueFromPipeline, ValueFromPipelineByPropertyName)]
         [ValidateNotNullOrEmpty()]
         [string]
-        $Vault=$PDDefaultVault,
+        $Vault = $PDDefaultVault,
         [switch]
         $AllLists,
         [switch]
         $AllListsAndAllData
     )
-    Begin{
+    Begin {
         #$Verbose = $PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent
         #if ($Verbose) {
-            $start = [DateTime]::Now
+        $start = [DateTime]::Now
         #}
         Write-Verbose "Start of Show-PersistentData"
     }
     Process {
-        if($AllLists){$Script:PDSettings.Vault.Keys}
-        elseif($AllListsAndAllData){
+        if ($AllLists) { $Script:PDSettings.Vault.Keys }
+        elseif ($AllListsAndAllData) {
             Show-PersistentData -AllLists | Show-PersistentData
         }
-        else{
+        else {
             Write-Warning "Containing inside of $vault"
             $Script:PDSettings.Vault.$Vault.List
         }
     }
     End {
         #if ($Verbose) { 
-            $end = [DateTime]::Now
-            Write-Verbose "Show-PersistentData took: $([int]($end - $start).TotalMilliseconds) ms"
+        $end = [DateTime]::Now
+        Write-Verbose "Show-PersistentData took: $([int]($end - $start).TotalMilliseconds) ms"
         #}
         Write-Verbose "End of Show-PersistentData"
     }
@@ -505,11 +522,11 @@ Function Remove-PersistentData {
         [ValidateNotNullOrEmpty()]
         [string[]]$Name
     )
-    Begin{
+    Begin {
         #$Verbose = $PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent
         #if ($Verbose) {
-            $start = [DateTime]::Now
-            Write-Verbose "Start of Remove-PersistentData"
+        $start = [DateTime]::Now
+        Write-Verbose "Start of Remove-PersistentData"
         #}
     }
     Process {
@@ -517,10 +534,10 @@ Function Remove-PersistentData {
             Set-PersistentData -Remove -Name $Nam
         }
     }
-    End{
+    End {
         #if ($Verbose) {
-            $end = [DateTime]::Now
-            Write-Verbose "Remove-PersistentData took: $([int]($end - $start).TotalMilliseconds) ms"
+        $end = [DateTime]::Now
+        Write-Verbose "Remove-PersistentData took: $([int]($end - $start).TotalMilliseconds) ms"
         #}
         Write-Verbose "End of Remove-PersistentData"
     }
@@ -560,42 +577,44 @@ Function Start-PersistentDataJobs {
     .EXAMPLE
     Start-PersistentDataJobs -StartWatcher
     #>
-    [CmdletBinding(SupportsShouldProcess,DefaultParameterSetName="Woop")]
+    [CmdletBinding(SupportsShouldProcess, DefaultParameterSetName = "Woop")]
     Param(
         [ValidateNotNullOrEmpty()]
-        [Parameter(ValueFromPipelineByPropertyName,ParameterSetName='Addjob')]                   $Addjob,
-        [Parameter(ValueFromPipelineByPropertyName,ParameterSetName='StartWatcher')]     [switch]$StartWatcher,
-        [Parameter(ValueFromPipelineByPropertyName,ParameterSetName='StartWatcherQuiet')][switch]$StartWatcherQuiet
+        [Parameter(ValueFromPipelineByPropertyName, ParameterSetName = 'Addjob')]                   $Addjob,
+        [Parameter(ValueFromPipelineByPropertyName, ParameterSetName = 'StartWatcher')]     [switch]$StartWatcher,
+        [Parameter(ValueFromPipelineByPropertyName, ParameterSetName = 'StartWatcherQuiet')][switch]$StartWatcherQuiet
     )
     #Param($AddJob,[switch]$StartWatcher,[switch]$StartWatcherQuiet)
-    Begin{}
-    Process{
+    Begin {}
+    Process {
         switch ($PsCmdlet.ParameterSetName) {
-            "Woop"              {
-                    Foreach ( $job in $Global:PersistentDataJobs ) {
-                        Try {
-                            $ea = $ErrorActionPreference
-                            $ErrorActionPreference = "Stop"
-                            . ( [ScriptBlock]::Create( $job ) )
-                        } Catch {
-                            Write-Warning "Failed to Start-PersistentDataJobs on:"
-                            $job
-                            Write-Error -ErrorAction Continue $_
-                        } Finally {
-                            $ErrorActionPreference = $ea
-                        }
-                        
+            "Woop" {
+                Foreach ( $job in $Global:PersistentDataJobs ) {
+                    Try {
+                        $ea = $ErrorActionPreference
+                        $ErrorActionPreference = "Stop"
+                        . ( [ScriptBlock]::Create( $job ) )
                     }
+                    Catch {
+                        Write-Warning "Failed to Start-PersistentDataJobs on:"
+                        $job
+                        Write-Error -ErrorAction Continue $_
+                    }
+                    Finally {
+                        $ErrorActionPreference = $ea
+                    }
+                        
                 }
-            "StartWatcher"      {Set-PersistentData -Add PersistentDataJobs "Set-PersistentData -StartWatcher -Path $PDDefaultPath"}
-            "StartWatcherQuiet" {Set-PersistentData -Add PersistentDataJobs "Set-PersistentData -StartWatcher -Quiet -Path $PDDefaultPath"}
-            "Addjob"            {Set-PersistentData -Add PersistentDataJobs $AddJob}
+            }
+            "StartWatcher" { Set-PersistentData -Add PersistentDataJobs "Set-PersistentData -StartWatcher -Path $PDDefaultPath" }
+            "StartWatcherQuiet" { Set-PersistentData -Add PersistentDataJobs "Set-PersistentData -StartWatcher -Quiet -Path $PDDefaultPath" }
+            "Addjob" { Set-PersistentData -Add PersistentDataJobs $AddJob }
         }
     }
-    End{}
+    End {}
 }
 
 Update-PersistentData -Verbose
 Start-PersistentDataJobs
 
-Export-ModuleMember -Function Set-PersistentData,Update-PersistentData,Remove-PersistentData,Show-PersistentData,Start-PersistentDataJobs -ErrorAction Ignore
+Export-ModuleMember -Function Set-PersistentData, Update-PersistentData, Remove-PersistentData, Show-PersistentData, Start-PersistentDataJobs -ErrorAction Ignore
