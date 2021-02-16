@@ -27,17 +27,42 @@ Estimated arrival time 1:17 PM)
         # Enter the max stage on which you are going to ascend
         [int]$MaxStage,
         # Take time of how many stages you do in 1h and enter it here.
-        [int]$StagesPerHour
+        [int]$StagesPerHour,
+        [ValidateNotNullOrEmpty()]
+        [ValidateSet("100LvlSolo","SameLevel")]
+        $Strategy = "100LvlSolo",
+        $MinutesOfDoubleSpeed
     )
     Process{
+        switch ($Strategy) {
+            "100LvlSolo" { $switchStrat = 100 ; Break } # The last 100 takes much more time..
+            "SameLevel"  { $switchStrat = 0   ; Break }
+        }
+
         if ($PSBoundParameters.MaxStage)      {$Global:MaxStage      = $MaxStage}
-        else { $MaxStage = $Global:MaxStage}
+        else {                                 $MaxStage = $Global:MaxStage }
         if ($PSBoundParameters.StagesPerHour) {$Global:StagesPerHour = $StagesPerHour}
-        else { $StagesPerHour = $Global:StagesPerHour}
+        else {                                 $StagesPerHour = $Global:StagesPerHour}
+        if ($PSBoundParameters.MinutesOfDoubleSpeed) {$Global:MinutesOfDoubleSpeed = $MinutesOfDoubleSpeed}
+        else {                                 $MinutesOfDoubleSpeed = $Global:MinutesOfDoubleSpeed}
+        
         if ($MaxStage -lt 100 )     {$MaxStage = 700}
         if ($StagesPerHour -lt 100 ) {$StagesPerHour = 300}
-        $Hours=($MaxStage-$Now)/$StagesPerHour;
-        "Hours left: {0:n2}" -f $Hours;
-        "Estimated arrival time $( [DateTime]::Now.AddHours($Hours).ToShortTimeString() )"
+        if ($MinutesOfDoubleSpeed -lt 20 ) {$MinutesOfDoubleSpeed = 20}
+
+        if (!$PSBoundParameters.MaxStage)             {"MaxStage`: $MaxStage" }
+        if (!$PSBoundParameters.StagesPerHour)        {"StagesPerHour`: $StagesPerHour" }
+        if (!$PSBoundParameters.MinutesOfDoubleSpeed) {"MinutesOfDoubleSpeed`: $MinutesOfDoubleSpeed" }
+
+
+        $Hours=($MaxStage + $switchStrat - $Now)/$StagesPerHour
+        $RequiredDouble = [Math]::Ceiling( (60 / $MinutesOfDoubleSpeed ) * $Hours )
+        $ExtraHours = $RequiredDouble * 15 / 3600
+        $TotalHours = $Hours + $ExtraHours
+        $estimatedTime = [DateTime]::Now.AddHours($TotalHours).ToShortTimeString()
+        $round = [math]::Round($TotalHours,2)
+        "Hours left`: {0}" -f $round;
+        "Estimated arrival time {0}" -f $estimatedTime
+        "Required 2x speed ads`: {0}" -f $RequiredDouble
     }
 }

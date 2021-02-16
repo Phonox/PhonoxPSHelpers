@@ -22,7 +22,7 @@
 #>
 
 Function Create-Checksum {
-<#
+    <#
 .Synopsis
    Combine Get-FileHash and Get-AuthenticodeSignature
 .DESCRIPTION
@@ -80,14 +80,14 @@ Verify-Checksum
     [CmdletBinding(SupportsShouldProcess)]
     Param(
         [Parameter(ValueFromPipeline,
-                   ValueFromPipelineByPropertyName,
-                   ValueFromRemainingArguments=$false,
-                   Position=0)]
+            ValueFromPipelineByPropertyName,
+            ValueFromRemainingArguments = $false,
+            Position = 0)]
         [ValidateNotNullOrEmpty()]
         [ValidateScript( { test-path $_ } ) ]
         #Enter a path to the folder, if file is specified, it will hopefully search the whole folder and recursivly
         $Path = "D:\temp\new",
-        [ValidateSet("MACTripleDES","MD5","RIPEMD160","SHA1","SHA256","SHA384","SHA512")]
+        [ValidateSet("MACTripleDES", "MD5", "RIPEMD160", "SHA1", "SHA256", "SHA384", "SHA512")]
         #Ability to change algorithm, but hasn't added that ability yet to the verify-checksum function yet.. WIP
         $Algorithm = "SHA256",
         [switch]
@@ -96,7 +96,7 @@ Verify-Checksum
         [switch]
         $ToDictionary
     )
-    Begin{
+    Begin {
         Write-Verbose "Starting creation of Checksum"
         #$fileHash = @()
         #$selected = "SignerCertificate","Status","StatusMessage","TimeStamperCertificate"
@@ -105,9 +105,9 @@ Verify-Checksum
         $start = get-date
         if ( !(Get-Module Microsoft.Powershell.Utility  ) ) { import-module Microsoft.Powershell.Utility  -ErrorAction stop }
         if ( !(Get-Module Microsoft.Powershell.Security ) ) { import-module Microsoft.Powershell.Security -ErrorAction stop }
-        Get-Command Get-FileHash,Get-AuthentiCodeSignature -ErrorAction Stop | Out-null
+        Get-Command Get-FileHash, Get-AuthentiCodeSignature -ErrorAction Stop | Out-null
     }
-    Process{
+    Process {
         if ( (Split-Path -Qualifier $path) -eq ($path -replace '\\') ) {
             Write-Warning "This the root of that disk! THIS is NOT recommended!"
             if ( !( $pscmdlet.ShouldProcess($path, "Get-ChildItem -RECURSE") ) ) {
@@ -116,37 +116,41 @@ Verify-Checksum
         }
         Try {
             Push-Location $path
-            $files = Get-ChildItem -Recurse $path -Force -ErrorAction Ignore -File | Where-Object {$_ -notmatch '\.?checksum\.csv$|checksum'}
-            if ($files.count -gt 400) {Write-Warning "Loads of files! Could take time! files: $($files.count)"}
-		    $fileHash = $files | 
-                Get-FileHash -Algorithm $Algorithm |
-                Select-Object Algorithm,Hash,@{N="Path";E={Resolve-Path -Relative $_.Path} } |
-                ForEach-Object {}{$temp = Get-AuthenticodeSignature $_.Path ; 
-                    $_ |Add-Member -NotePropertyName "SignerCertificate" -NotePropertyValue $temp.SignerCertificate.Thumbprint 
-                    $_ |Add-Member -NotePropertyName "Status" -NotePropertyValue $temp.Status 
-                    $_ |Add-Member -NotePropertyName "StatusMessage" -NotePropertyValue $temp.StatusMessage 
-                    $_ |Add-Member -NotePropertyName "TimeStamperCertificate" -NotePropertyValue $temp.TimeStamperCertificate.Thumbprint
-                    $AllHash."$($_.Path)" = $_
-                    $list.add( $_ )
-                    $_
-                    }{} | 
-                ForEach-Object {$int=0}  {$int++;if ($int % 1000 -eq 0) {Write-Verbose "At: $int Time: $( (Get-date) - $start)";$_} }  { }
-        } Catch{
+            $files = Get-ChildItem -Recurse $path -Force -ErrorAction Ignore -File | Where-Object { $_ -notmatch '\.?checksum\.csv$|checksum' }
+            if ($files.count -gt 400) { Write-Warning "Loads of files! Could take time! files: $($files.count)" }
+            $fileHash = $files | 
+            Get-FileHash -Algorithm $Algorithm |
+            Select-Object Algorithm, Hash, @{N = "Path"; E = { Resolve-Path -Relative $_.Path } } |
+            ForEach-Object {} { $temp = Get-AuthenticodeSignature $_.Path ; 
+                $_ | Add-Member -NotePropertyName "SignerCertificate" -NotePropertyValue $temp.SignerCertificate.Thumbprint 
+                $_ | Add-Member -NotePropertyName "Status" -NotePropertyValue $temp.Status 
+                $_ | Add-Member -NotePropertyName "StatusMessage" -NotePropertyValue $temp.StatusMessage 
+                $_ | Add-Member -NotePropertyName "TimeStamperCertificate" -NotePropertyValue $temp.TimeStamperCertificate.Thumbprint
+                $AllHash."$($_.Path)" = $_
+                $list.add( $_ )
+                $_
+            } {} | 
+            ForEach-Object { $int = 0 } { $int++; if ($int % 1000 -eq 0) { Write-Verbose "At: $int Time: $( (Get-date) - $start)"; $_ } } { }
+        }
+        Catch {
             Write-Error $_
             Write-Warning "Have not taken care of this."
             Write-Warning "Most likely that you are trying to check the root"
-        } Finally {
+        }
+        Finally {
             Pop-Location
         }
         Write-Verbose ""
     }
-    End{
+    End {
         $end = Get-Date
         if ($WriteToFile) {
             Write-ToGenericCSVFile -Stuff $list -Path $path
-        }elseif ($ToDictionary) {
+        }
+        elseif ($ToDictionary) {
             $allHash
-        } else {
+        }
+        else {
             $list
         }
         write-Verbose "Took: $($end - $start) Files: $($list.count)"
@@ -156,7 +160,7 @@ Verify-Checksum
 
 
 Function Write-ToGenericCSVFile {
-<#
+    <#
 .Synopsis
    Convert any object into csv file and name it checksum.csv unless stated in path
 .DESCRIPTION
@@ -177,9 +181,9 @@ Verify-Checksum
     [CmdletBinding(SupportsShouldProcess)]
     Param(
         [Parameter(ValueFromPipeline,
-                   Position=0)]
+            Position = 0)]
         [ValidateNotNullOrEmpty()]
-		#Put the objects you want to write to a file
+        #Put the objects you want to write to a file
         $Stuff,
         [String]
         #Path is where you wish to save the file, it will be saved as checksum.csv
@@ -187,7 +191,7 @@ Verify-Checksum
         # Ability to change Delimiter for the CSV, usually ',' is the common delimiter, but i've changed it to ';'
         $Delimiter = ";"
     )
-    Begin{
+    Begin {
         if (!$path) {
             $pwd = (Get-Location).Path
             $path = Join-Path $pwd ( (Split-path -leaf $pwd) + ".checksum.csv" )
@@ -200,24 +204,24 @@ Verify-Checksum
         }
         $list = New-object System.Collections.ArrayList
     }
-    Process{
+    Process {
         foreach ($new in $stuff) {
             #if (!$Columns) {
-		    #    $Columns = $new |gm -MemberType *Propert* |select -ExpandProperty Name | sort -Unique
+            #    $Columns = $new |gm -MemberType *Propert* |select -ExpandProperty Name | sort -Unique
             #}
-            $list.Add($new) |out-null
+            $list.Add($new) | out-null
         }
     }
-    End{
+    End {
         #($list |select $Columns | ConvertTo-Csv -Delimiter $Delimiter -NoTypeInformation) -replace '"' |Out-File $path -Encoding utf8
         Write-Verbose "Writing to file: $path"
-        ($list | ConvertTo-Csv -Delimiter $Delimiter -NoTypeInformation) -replace '"' |Out-File $path -Encoding utf8
+        ($list | ConvertTo-Csv -Delimiter $Delimiter -NoTypeInformation) -replace '"' | Out-File $path -Encoding utf8
         Write-Warning "File: $path"
     }
 }
 
 Function Verify-Checksum {
-<#
+    <#
 .Synopsis
    Enter a path to folder to do a check against 
 .DESCRIPTION
@@ -309,21 +313,21 @@ Verify-Checksum
     [CmdletBinding(SupportsShouldProcess)]
     Param(
         [Parameter(ValueFromPipeline,
-                   ValueFromPipelineByPropertyName,
-                   ValueFromRemainingArguments=$false,
-                   Position=0)]
+            ValueFromPipelineByPropertyName,
+            ValueFromRemainingArguments = $false,
+            Position = 0)]
         [ValidateNotNullOrEmpty()]
-		#Enter a path to the folder, if file is specified, it will hopefully search the whole folder and recursivly
+        #Enter a path to the folder, if file is specified, it will hopefully search the whole folder and recursivly
         [String]
         $Path
     )
-    Begin{
+    Begin {
         Write-Verbose "Start of Verify-Checksum"
         $Resume = New-object System.Collections.ArrayList
-        $checkAgains = "*checksum.csv","*.dat"
+        $checkAgains = "*checksum.csv", "*.dat"
         $begin = get-date
     }
-    Process{
+    Process {
         $CheckSumFiles = @()
         if ( (Split-Path -Qualifier $path) -eq ($path -replace '\\') ) {
             Write-Warning "This the root of that disk! THIS is NOT recommended!"
@@ -332,7 +336,7 @@ Verify-Checksum
             }
         }
         foreach ( $again in $checkAgains) {
-		    $CheckSumFiles  += Get-ChildItem -file -Recurse -Force -path $path $again -EA Ignore | Select-Object -expand Fullname
+            $CheckSumFiles += Get-ChildItem -file -Recurse -Force -path $path $again -EA Ignore | Select-Object -expand Fullname
         }
 
         foreach ($file in $CheckSumFiles) {
@@ -341,20 +345,22 @@ Verify-Checksum
                 $data = Get-Content $file
                 #$data = @("765CA737C624AD3485751B5A6DA279327A2230911C96A22138E2A1F6822241F5.\path\file.exe765CA737C624AD3485751B5A6DA279327A2230911C96A22138E2A1F6822241F5.\path\file.exe",
                 #"765CA737C624AD3485751B5A6DA279327A2230911C96A22138E2A1F6822241F5.\path\file.exe765CA737C624AD3485751B5A6DA279327A2230911C96A22138E2A1F6822241F5.\path\file.exe")
-                $edited = $data -replace '(\.\\[\w\ \\]+\.\w\w\w)',';$1NewRow' -split 'NewRow'| Where-Object {$_} | ForEach-Object {$csv = "Algorithm;Hash;Path`n"} {$csv += "SHA256;$_`n"}{$csv} 
+                $edited = $data -replace '(\.\\[\w\ \\]+\.\w\w\w)', ';$1NewRow' -split 'NewRow' | Where-Object { $_ } | ForEach-Object { $csv = "Algorithm;Hash;Path`n" } { $csv += "SHA256;$_`n" } { $csv } 
                 $Original = $edited  | ConvertFrom-Csv -Delimiter ";"
-            }elseif ($file -match '\.csv$') {
+            }
+            elseif ($file -match '\.csv$') {
                 $data = Import-Csv -Delimiter ";" -Path $file
                 $Original = $data
             }
-            if ( ( $Original | Get-Member -MemberType *proper* | Where-Object Name -notin "Chars","Length" | Sort-Object -Unique Name ).name -le 1 ) {
+            if ( ( $Original | Get-Member -MemberType *proper* | Where-Object Name -notin "Chars", "Length" | Sort-Object -Unique Name ).name -le 1 ) {
                 # If there only 1 Property, ie. failed import
                 Write-Error "Failed to import the file, search for this row and update the script" -ErrorAction Stop
             }
             
             If ( $Original.Algorithm ) {
                 $Algorithm = $Original.Algorithm | Select-Object -First 1
-            } else {
+            }
+            else {
                 $Algorithm = "SHA256"
             }
 
@@ -363,7 +369,8 @@ Verify-Checksum
 
             if ($ActualFilesHash.keys.count -ne $Original.count) {
                 Write-Warning "Actual count is not equal to original folder count"
-            }else{
+            }
+            else {
                 Write-Verbose "Equal amounth of files!"
             }
             if ($ActualFilesHash.keys.count -gt $Original.count) {
@@ -375,13 +382,13 @@ Verify-Checksum
             $CountDownHash = $ActualFilesHash
             
             $int = 0
-            foreach ( $sum in $Original ){
+            foreach ( $sum in $Original ) {
                 $int++
-                if ($int % 1000 -eq 0) {write-verbose "At: $int Time: $((Get-date) - $start)" }
+                if ($int % 1000 -eq 0) { write-verbose "At: $int Time: $((Get-date) - $start)" }
                 $found = $ActualFilesHash."$($sum.Path)"
                 #$found = $ActualFiles |? Path -eq $sum.path #This will be exponentially slower compared to hash.key which does not search..
                 if ($found) {
-                        $CountDownHash.Remove( $Sum.Path )
+                    $CountDownHash.Remove( $Sum.Path )
                     if ($found.count -gt 1) {
                         Write-warning "ERROR! Found more than one of this file: $($sum.path)"
                     }
@@ -395,40 +402,46 @@ Verify-Checksum
                                 Write-Verbose "Matching TimeStamperCertificate: $($sum.path)"
                                 
                                 $sum | Add-Member -NotePropertyName "VerifyStatus" -NotePropertyValue "AllMatches"
-                                $resume.Add( $sum ) |Out-Null
-                            } elseif (! $found.SignerCertificate -and ! $sum.TimeStamperCertificate) {
+                                $resume.Add( $sum ) | Out-Null
+                            }
+                            elseif (! $found.SignerCertificate -and ! $sum.TimeStamperCertificate) {
                                 Write-Verbose "Error! No TimeStamperCertificate on $($sum.path)"
                                 $sum | Add-Member -NotePropertyName "VerifyStatus" -NotePropertyValue "NoTimeStamperCertificate"
-                                $resume.Add( $sum ) |Out-Null
-                            } else {
+                                $resume.Add( $sum ) | Out-Null
+                            }
+                            else {
                                 Write-Warning "ERROR!   BAD    TimeStamperCertificate: $($sum.path)"
                                 Write-Warning "ERROR!  Actual  TimeStamperCertificate: $($found.TimeStamperCertificate)"
                                 Write-Warning "ERROR! Original TimeStamperCertificate: $($sum.TimeStamperCertificate)"
                                 $sum | Add-Member -NotePropertyName "VerifyStatus" -NotePropertyValue "BadTimeStamperCertificate"
-                                $resume.Add( $sum ) |Out-Null
+                                $resume.Add( $sum ) | Out-Null
                             }
-                        } elseif (! $found.SignerCertificate.Thumbprint -and ! $sum.SignerCertificate) {
+                        }
+                        elseif (! $found.SignerCertificate.Thumbprint -and ! $sum.SignerCertificate) {
                             Write-Verbose "Error! No SignerCertificate on $($sum.path)"
                             $sum | Add-Member -NotePropertyName "VerifyStatus" -NotePropertyValue "NoSignerCertificate"
-                            $resume.Add( $sum ) |Out-Null
-                        } else {
+                            $resume.Add( $sum ) | Out-Null
+                        }
+                        else {
                             Write-Warning "ERROR!   BAD    SignerCertificate: $($sum.path)"
                             Write-Warning "ERROR!  Actual  SignerCertificate: $($found.SignerCertificate)"
                             Write-Warning "ERROR! Original SignerCertificate: $($sum.SignerCertificate)"
                             $sum | Add-Member -NotePropertyName "VerifyStatus" -NotePropertyValue "BadSignerCertificate"
-                            $resume.Add( $sum ) |Out-Null
+                            $resume.Add( $sum ) | Out-Null
                         }
-                    } else {
+                    }
+                    else {
                         Write-Warning "ERROR!   BAD    CHECKSUM: $($sum.path)"
                         Write-Warning "ERROR!  Actual  CHECKSUM: $($found.Hash)"
                         Write-Warning "ERROR! Original CHECKSUM: $($sum.Hash)"
                         $sum | Add-Member -NotePropertyName "VerifyStatus" -NotePropertyValue "BadChecksum"
-                        $resume.Add( $sum ) |Out-Null
+                        $resume.Add( $sum ) | Out-Null
                     }
-                }else{
+                }
+                else {
                     Write-Warning "ERROR! FILE NOT FOUND: $($sum.hash)"
                     $sum | Add-Member -NotePropertyName "VerifyStatus" -NotePropertyValue "NotFound"
-                    $resume.Add( $sum ) |Out-Null
+                    $resume.Add( $sum ) | Out-Null
                 }
             }
             if ($CountDownHash.keys.count -gt 0) {
@@ -441,13 +454,13 @@ Verify-Checksum
             }
         }
     }
-    End{
+    End {
         $global:Resume = $Resume
         Write-Verbose "The Variable `$Resume holds all this information, including VerifyStatus"
         Write-Verbose "Total files checked: $($Resume.count)"
-        $Resume | Group-Object VerifyStatus | Select-Object Count,Name
+        $Resume | Group-Object VerifyStatus | Select-Object Count, Name
         Write-Verbose "End of Verify-Checksum $( (get-date) - $begin)"
     }
 }
 
-Export-ModuleMember Create-Checksum,Verify-Checksum -ErrorAction Ignore
+Export-ModuleMember Create-Checksum, Verify-Checksum -ErrorAction Ignore

@@ -54,7 +54,7 @@ Function Get-ChildItemSize {
             }
         }
     }
-    End {       
+    End {
     }
 }
 

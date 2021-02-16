@@ -1,18 +1,29 @@
 #Requires -Module @{ ModuleName = 'Pester'; ModuleVersion = '4.9.0' }
+$ScriptPath = $PSScriptRoot
+$File = ( Split-Path $PSCommandPath -Leaf ) -replace '\.tests\.ps1$', '.ps1'
+$FilePath = Join-Path (Join-Path $ScriptPath ..) (Join-Path Functions $File)
+$ModulePath = Convert-Path (Join-Path $ScriptPath "..")
+if ( !(test-path $FilePath ) ) { Write-Error "Failed to find file" }
+if ($global:lastImport) {$totalMS = ( [datetime]::now - $global:lastImport).TotalMilliseconds}
+if ( !(Get-Module PhonoxsPSHelpers) -or !$global:lastImport -or $totalMS -gt 30000) {
+    $global:lastImport = [datetime]::Now
+    if ( Get-Module PhonoxsPSHelpers ) { Remove-Module PhonoxsPSHelpers }
+    if (-Not (Get-Module PhonoxsPSHelpers ) ) { Import-Module $ModulePath -ea Ignore -Force *>$null }
+}
 
 Describe "Timer features" {
     It 'Should be no timers right now' {
-        Get-timer |should -BeNullOrEmpty
+        Get-timer | should -BeNullOrEmpty
     }
     $SoonDate = (Get-date).AddSeconds(0.5)
     It "Should be possible to add timer" {
         Set-timer -date $SoonDate "test" | Should -BeTrue
     }
     It 'Should be no timers right now' {
-        (Get-timer ).count |should -be 1
+        (Get-timer ).count | should -be 1
     }
     It 'Should be no timers right now' {
-        (Get-timer | Where-Object Time -eq $SoonDate ).count |should -be 1
+        (Get-timer | Where-Object Time -eq $SoonDate ).count | should -be 1
     }
 }
 

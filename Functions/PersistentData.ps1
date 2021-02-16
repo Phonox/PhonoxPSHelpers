@@ -38,6 +38,11 @@ Function Get-PersistentData {
             $List = @( Get-Content $Path -Raw -Encoding $Encoding -Force | ConvertFrom-Json -EA Continue ) | 
             ForEach-Object {
                 if ($_.Scope -match "\w") { $_ } else { Throw "File is incomparable" }
+                if ($_.Type -eq 'DateTime') { $_.Value = ($_.Value -as 'DateTime').ToLocalTime() ; $_ }
+                elseif ($_.Name -eq $PDDefaultRemove) {
+                    # Remove unwanted variables from all powershell instances.
+                    $PDDefaultRemove.Value | Sort-Object -Unique| ForEach-Object Remove-Variable -ErrorAction Ignore -scope Global $_
+                }else { $_ }
             }
             
             if ( !$list -or !$Script:PDSettings -or $Script:PDSettings.GetType().ToString() -ne "HashTable") {
@@ -55,12 +60,7 @@ Function Get-PersistentData {
                 $Script:PDSettings.Vault.$Vault = @{}
             }
             $Script:PDSettings.Data.$Vault = @{}
-            $list.Where{ $_.Type -eq 'DateTime' }.foreach{ $_.Value = ($_.Value -as 'DateTime').ToLocalTime() }
-
-            # Remove unwanted variables from all powershell instances.
-            $removingThese,$list = $list.where({$_.Name -eq $PDDefaultRemove},"split")
-            ($PDDefaultRemove.Value | Sort-Object -Unique).Foreach{ Remove-Variable -ErrorAction Ignore -scope Global $_ }
-
+            
             $Script:PDSettings.Vault.$Vault.List = $list
             if ($list) {
                 $Props = ( $list | Get-Member -MemberType NoteProperty -ErrorAction Stop ) -as [PSCustomObject] | select-Object -ExpandProperty Name
