@@ -72,15 +72,7 @@ Describe "Importing module" -Tags "Module" {
             ($allCommands.count) | should -BeGreaterOrEqual 18
         }
     }
-    Context 'Performance of PROMPT (Going to be moved)' {
-        $int = 5
-        $lessOrEqual = 20
-        It "Prompt $int`x times should have an avg. faster than $lessOrEqual`ms" {    
-            $TMS = [int]( ( Measure-Command { 1..$int | Foreach-object { prompt *>&1 | Out-Null } } ).Milliseconds / ($int ) ) 
-            Write-Warning "Total avg. ms. $TMS"
-            $TMS | Should -BeLessOrEqual $lessOrEqual
-        }
-    }
+    
 }
 Import-LocalizedData -BaseDirectory $ScriptPath -FileName "$modulename.psd1" -BindingVariable data
 

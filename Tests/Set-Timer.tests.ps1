@@ -11,19 +11,21 @@ if ( !(Get-Module PhonoxsPSHelpers) -or !$global:lastImport -or $totalMS -gt 300
     if (-Not (Get-Module PhonoxsPSHelpers ) ) { Import-Module $ModulePath -ea Ignore -Force *>$null }
 }
 
-Describe "Timer features" {
+Describe "Timer features" -Tags "Set-Timer","UT" {
     It 'Should be no timers right now' {
+        # incase if this is not a clean environment, this can fail as there are more timers
         Get-timer | should -BeNullOrEmpty
     }
-    $SoonDate = (Get-date).AddSeconds(0.5)
+    $SoonDate = [datetime]::now.AddSeconds(0.5)
     It "Should be possible to add timer" {
-        Set-timer -date $SoonDate "test" | Should -BeTrue
+        { Set-timer -date $SoonDate "test" } | Should -not -Throw
+    }
+    It 'There should be 1 timers active' {
+        (Get-timer ).id.count | should -be 1
     }
     It 'Should be no timers right now' {
-        (Get-timer ).count | should -be 1
-    }
-    It 'Should be no timers right now' {
-        (Get-timer | Where-Object Time -eq $SoonDate ).count | should -be 1
+        while ( ([datetime]::now.AddSeconds( - 1 ) -lt $SoonDate) ) {}
+        (Get-timer | Where-Object Time -eq $SoonDate ).id.count | should -be 0
     }
 }
 

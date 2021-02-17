@@ -11,11 +11,22 @@ if ( !(Get-Module PhonoxsPSHelpers) -or !$global:lastImport -or $totalMS -gt 300
     if (-Not (Get-Module PhonoxsPSHelpers ) ) { Import-Module $ModulePath -ea Ignore -Force *>$null }
 }
 
-Describe "Get-ChildItemSize" -tags "Get-ChildItemSize","UT"{
-    It "Should get the size of a file" {
-        ( Get-ChildItemSize ( Join-Path (Join-Path $ScriptPath ..) PhonoxsPSHelpers.psd1) ).Length | should -BeGreaterThan 6062
+Describe "Set-Break" -Tags "Set-Break","UT" {
+    it 'Should be possible to turn ON Break' {
+        Set-Break -Turn:$true
+        $oldSession = [DateTime]$Global:StartofSession
+        $global:OnBreak | Should -BeTrue
     }
-    It "Should get the size of a folder" {
-        ( Get-ChildItemSize ( Join-Path (Join-Path $ScriptPath ..) ps1xml ) ).Length | should -be 25526
+    start-sleep -Milliseconds 300
+    it 'Should be possible to turn OFF Break' {
+        Set-Break -Turn:$false
+        $global:OnBreak | Should -BeFalse
     }
+    it 'Should have changed StartOfSession' {
+        $Global:StartofSession -ne $OldSession | Should -BeTrue
+    }
+    it 'Should have changed StartOfSession with atleast 300ms' {
+        [math]::Round( ($Global:StartofSession - $OldSession).TotalMilliseconds) |Should -BeGreaterOrEqual 300
+    }
+
 }

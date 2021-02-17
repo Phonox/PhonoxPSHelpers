@@ -18,7 +18,7 @@ $first100 = 1..100 |ForEach-Object {
     }
 }
 
-Describe -Tags "ConvertTo-OnePointHash","UnitTest" "ConvertTo-OnePointHash" {
+Describe "ConvertTo-OnePointHash" -Tags "ConvertTo-OnePointHash","UT" {
     It 'Should handle pipeline input' {
         $test = $first100 |ConvertTo-OnePointHash -id id -SkipCheck
         $test."5".random |Should -BeGreaterThan 1
@@ -36,7 +36,7 @@ Describe -Tags "ConvertTo-OnePointHash","UnitTest" "ConvertTo-OnePointHash" {
         $test.keys.count |Should -be 1
     }
 }
-Describe -Tags 'Performance',"PT","ConvertTo-OnePointHash" 'Performance ConvertTo-OnePointHash' {
+Describe "ConvertTo-OnePointHash" -Tags "PT","ConvertTo-OnePointHash" {
     $data = 1..3000 |ForEach-Object {
         [PSCustomObject]@{
             id = "$_"

@@ -11,11 +11,15 @@ if ( !(Get-Module PhonoxsPSHelpers) -or !$global:lastImport -or $totalMS -gt 300
     if (-Not (Get-Module PhonoxsPSHelpers ) ) { Import-Module $ModulePath -ea Ignore -Force *>$null }
 }
 
-Describe "Get-ChildItemSize" -tags "Get-ChildItemSize","UT"{
-    It "Should get the size of a file" {
-        ( Get-ChildItemSize ( Join-Path (Join-Path $ScriptPath ..) PhonoxsPSHelpers.psd1) ).Length | should -BeGreaterThan 6062
-    }
-    It "Should get the size of a folder" {
-        ( Get-ChildItemSize ( Join-Path (Join-Path $ScriptPath ..) ps1xml ) ).Length | should -be 25526
+Describe "Prompt" -Tags "Prompt","UT" {
+
+}
+Describe 'Performance of PROMPT' -Tags "Prompt","PT" {
+    $int = 5
+    $lessOrEqual = 20
+    It "Prompt $int`x times should have an avg. faster than $lessOrEqual`ms" {    
+        $TMS = [int]( ( Measure-Command { 1..$int | Foreach-object { prompt *>&1 | Out-Null } } ).Milliseconds / ($int ) ) 
+        Write-Warning "Total avg. ms. $TMS"
+        $TMS | Should -BeLessOrEqual $lessOrEqual
     }
 }
