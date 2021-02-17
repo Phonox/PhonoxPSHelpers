@@ -11,7 +11,7 @@ if ( !(Get-Module PhonoxsPSHelpers) -or !$global:lastImport -or $totalMS -gt 300
     if (-Not (Get-Module PhonoxsPSHelpers ) ) { Import-Module $ModulePath -ea Ignore -Force *>$null }
 }
 
-Describe "Write-FancyMessage" {
+Describe "Write-FancyMessage" -Tags "Write-FancyMessage" {
     It "Should output 3 rows with 1 input" {
         $test2 = Write-FancyMessage "test test" *>&1
         $test2 | Should -HaveCount 3

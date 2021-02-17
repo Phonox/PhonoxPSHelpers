@@ -3,7 +3,7 @@
 $Encoding = "UTF8"
 $PDDefaultVault = 'PDDefault'
 if (!$ENV:Appdata) { $ENV:Appdata = ( [Environment]::GetFolderPath('ApplicationData') ) } # quickfix for MacOS
-$PDDefaultPath = (Join-Path $ENV:Appdata "PDDefault.json")
+$PDDefaultPath = Join-Path $ENV:Appdata "PDDefault.json"
 $PDDefaultRemove = 'PDDefaultRemove'
 #$PDDefaultPath = (Join-Path $env:TEMP "PDDefault.json")
 #endregion
@@ -37,48 +37,53 @@ Function Get-PersistentData {
             #$List = @( Get-Content $Path -Raw -Encoding $Encoding | ConvertFrom-Json -EA Continue) -as [System.Collections.ArrayList] | 
             $List = @( Get-Content $Path -Raw -Encoding $Encoding -Force | ConvertFrom-Json -EA Continue ) | 
             ForEach-Object {
-                if ($_.Scope -match "\w") { $_ } else { Throw "File is incomparable" }
-                if ($_.Type -eq 'DateTime') { $_.Value = ($_.Value -as 'DateTime').ToLocalTime() ; $_ }
+                if (! ($_.Scope -match "\w") ) { Throw "File is incomparable" }
                 elseif ($_.Name -eq $PDDefaultRemove) {
                     # Remove unwanted variables from all powershell instances.
-                    $PDDefaultRemove.Value | Sort-Object -Unique| ForEach-Object Remove-Variable -ErrorAction Ignore -scope Global $_
+                    $_.Value | Sort-Object -Unique | ForEach-Object { 
+                            Remove-Variable -ErrorAction Ignore -scope Global $_
+                            Remove-Variable -ErrorAction Ignore -scope Global local
+                        }
                 }else { $_ }
+            } | 
+            ForEach-Object {
+                if ($_.Type -eq 'DateTime') { $_.Value = ($_.Value -as 'DateTime').ToLocalTime() }
+                else {
+                    $_.value = $_.value -as $_.Type
+                }
+                $_
             }
             
             if ( !$list -or !$Script:PDSettings -or $Script:PDSettings.GetType().ToString() -ne "HashTable") {
                 $Script:PDSettings = @{}
             }
 
-            if ( !$list -or !$Script:PDSettings.Vault -or $Script:PDSettings.Vault.GetType().ToString() -ne "HashTable") {
-                $Script:PDSettings.Vault = @{}
+            if ( !$list -or !$Script:PDSettings["Vault"] -or $Script:PDSettings["Vault"].GetType().ToString() -ne "HashTable") {
+                $Script:PDSettings["Vault"] = @{}
             }
-            if ( !$list -or !$Script:PDSettings.Data -or $Script:PDSettings.Data.GetType().ToString() -ne "HashTable") {
-                $Script:PDSettings.Data = @{}
+            if ( !$list -or !$Script:PDSettings["data"] -or $Script:PDSettings["data"].GetType().ToString() -ne "HashTable") {
+                $Script:PDSettings["data"] = @{}
             }
 
-            if ( !$list -or !$Script:PDSettings.Vault.$Vault -or $Script:PDSettings.Vault.$Vault.GetType().ToString() -ne "HashTable") {
-                $Script:PDSettings.Vault.$Vault = @{}
+            if ( !$list -or !$Script:PDSettings["Vault"][$vault] -or $Script:PDSettings["Vault"][$vault].GetType().ToString() -ne "HashTable") {
+                $Script:PDSettings["Vault"][$vault] = @{}
             }
-            $Script:PDSettings.Data.$Vault = @{}
+            $Script:PDSettings["data"][$vault] = @{}
             
-            $Script:PDSettings.Vault.$Vault.List = $list
+            $Script:PDSettings["Vault"][$vault].List = $list
             if ($list) {
                 $Props = ( $list | Get-Member -MemberType NoteProperty -ErrorAction Stop ) -as [PSCustomObject] | select-Object -ExpandProperty Name
             }
-            $Script:PDSettings.Data.$Vault = @{}
+            $Script:PDSettings["data"][$vault] = @{}
             $first = $Vault
         }
         foreach ( $obj in $list ) {
-            $Script:PDSettings.Data.$Vault.($obj.Name) = @{}
+            $Script:PDSettings["data"][$vault][$obj.Name] = @{}
             foreach ( $prop in ($props -ne "Name") ) {
-                $Script:PDSettings.Data.$Vault.($obj.Name).$prop = @{}
-                $Script:PDSettings.Data.$Vault.($obj.Name).$prop = $obj.$prop
+                $Script:PDSettings["data"][$vault][$obj.Name].$prop = @{}
+                $Script:PDSettings["data"][$vault][$obj.Name].$prop = $obj.$prop
             }
-            # if ( $Script:PDSettings.Data.$Vault.($obj.Name).Type -eq 'DateTime' ) {
-            #     $Script:PDSettings.Data.$Vault.($obj.Name).Value = ($Script:PDSettings.Data.$Vault.($obj.Name).Value -as $Script:PDSettings.Data.$Vault.($obj.Name).Type).ToLocalTime()
-            # } else {
-            $Script:PDSettings.Data.$Vault.($obj.Name).Value = $Script:PDSettings.Data.$Vault.($obj.Name).Value -as $Script:PDSettings.Data.$Vault.($obj.Name).Type
-            # }
+            $Script:PDSettings["data"][$vault][$obj.Name].Value = $Script:PDSettings["data"][$vault][$obj.Name].Value -as $Script:PDSettings["data"][$vault][$obj.Name].Type
         }
     }
     End {
@@ -215,29 +220,30 @@ Function Set-PersistentData {
             "Change" {
                 $ThisType = $Value.GetType().Name.ToString()
                 if (
-                    !$Script:PDSettings.Data.$Vault.$Name -or # Variable does not exist
-                    $Script:PDSettings.Data.$Vault.$Name.Scope -ne $Scope -or # Not the same scope
-                    $Script:PDSettings.Data.$Vault.$Name.Type -ne $ThisType -or # Not the same type
-                    ($Script:PDSettings.Data.$Vault.$Name.Value | ConvertTo-Json) -ne ($Value | ConvertTo-Json) # not the save value, takes most time/cpu
+                    !$Script:PDSettings["data"][$vault][$name] -or # Variable does not exist
+                    $Script:PDSettings["data"][$vault][$name].Scope -ne $Scope -or # Not the same scope
+                    $Script:PDSettings["data"][$vault][$name].Type -ne $ThisType -or # Not the same type
+                    ($Script:PDSettings["data"][$vault][$name].Value | ConvertTo-Json) -ne ($Value | ConvertTo-Json) # not the save value, takes most time/cpu
                 ) {
                     # Procedure to add
                     Write-Verbose "Variable: $Name got new or changed Value"
-                    $Script:PDSettings.Data.$Vault.$Name = @{}
-                    $Script:PDSettings.Data.$Vault.$Name.Type = $ThisType
-                    $Script:PDSettings.Data.$Vault.$Name.Value = $Value
-                    $Script:PDSettings.Data.$Vault.$Name.Scope = $Scope
+                    $Script:PDSettings["data"][$vault][$name] = @{
+                        Type = $ThisType
+                        Value = $Value
+                        Scope = $Scope
+                    }
                     $update = $true
-                    Set-Variable -Name $Name -Value $Script:PDSettings.Data.$Vault.$Name.Value -Scope $Scope
+                    Set-Variable -Name $Name -Value $Script:PDSettings["data"][$vault][$name].Value -Scope $Scope
                 }
                 else {
                     #Add it
-                    Set-Variable -Name $Name -Value $Script:PDSettings.Data.$Vault.$Name.Value -Scope $Scope
+                    Set-Variable -Name $Name -Value $Script:PDSettings["data"][$vault][$name].Value -Scope $Scope
                 }
             }
             "Watcher" {
                 if (! (Get-EventSubscriber | Where-Object EventName -eq "Changed") ) {
                     #quickfix
-                    if (!$Quiet) { 
+                    if ($Quiet) { 
                         Register-Watcher -folder (Split-Path $Path -Parent) -Filter (Split-Path $path -Leaf) -ActionChanged ([scriptblock]::Create("start-sleep -m 15 ; Update-PersistentData")) -Quiet | Out-Null
                     }
                     else {
@@ -246,59 +252,59 @@ Function Set-PersistentData {
                 }
             }
             "Remove" {
-                $Script:PDSettings.Data.$Vault.Remove($Name)
+                $Script:PDSettings["data"][$vault].Remove($Name)
                 Remove-Variable -Scope $Scope -Name $Name -ea Ignore
                 Write-Verbose "Removed variable: $Name"
                 $Update = $true
             }
             "ChangeADD" {
                 # Variable does not exist
-                if ( !$Script:PDSettings.Data.$Vault.$Name) { 
+                if ( !$Script:PDSettings["data"][$vault][$name]) { 
                     Set-PersistentData -Name $Name -Value $Value
                 }
                 else {
                     # Variable Exist
-                    if (!$Script:PDSettings.Data.$Vault.$Name.Type) {
+                    if (!$Script:PDSettings["data"][$vault][$name].Type) {
                         $ThisType = $Value.GetType().Name.ToString()
                     }
                     else {
-                        $ThisType = $Script:PDSettings.Data.$Vault.$Name.Type
+                        $ThisType = $Script:PDSettings["data"][$vault][$name].Type
                     }
                     Switch ($ThisType) {
-                        "Int" { $Script:PDSettings.Data.$Vault.$Name.Value += $Value }
-                        "String" { $ThisType = "$ThisType[]" ; $Script:PDSettings.Data.$Vault.$Name.Value = ( ( $Script:PDSettings.Data.$Vault.$Name.Value, $Value ) -as $ThisType ) }
+                        "Int" { $Script:PDSettings["data"][$vault][$name].Value += $Value }
+                        "String" { $ThisType = "$ThisType[]" ; $Script:PDSettings["data"][$vault][$name].Value = ( ( $Script:PDSettings["data"][$vault][$name].Value, $Value ) -as $ThisType ) }
                         #"DateTime" {} # might need to fix this
-                        Default { $Script:PDSettings.Data.$Vault.$Name.Value = ( ( $Script:PDSettings.Data.$Vault.$Name.Value + $Value ) -as $ThisType ) }
+                        Default { $Script:PDSettings["data"][$vault][$name].Value = ( ( $Script:PDSettings["data"][$vault][$name].Value + $Value ) -as $ThisType ) }
                     }
                     
-                    $Script:PDSettings.Data.$Vault.$Name.Type = $ThisType
+                    $Script:PDSettings["data"][$vault][$name].Type = $ThisType
                     # if ($ThisType -eq "DateTime") {
-                    #     $Script:PDSettings.Data.$Vault.$Name.Value = $Value.DateTime
+                    #     $Script:PDSettings["data"][$vault][$name].Value = $Value.DateTime
                     # }
-                    $Script:PDSettings.Data.$Vault.$Name.Scope = $Scope
+                    $Script:PDSettings["data"][$vault][$name].Scope = $Scope
                     $update = $true
-                    Set-Variable -Name $Name -Value $Script:PDSettings.Data.$Vault.$Name.Value -Scope $Scope
+                    Set-Variable -Name $Name -Value $Script:PDSettings["data"][$vault][$name].Value -Scope $Scope
                 }
             }
             "ChangeSUB" {
                 # variable does not exist
-                if ( !$Script:PDSettings.Data.$Vault.$Name ) {
+                if ( !$Script:PDSettings["data"][$vault][$name] ) {
                     Write-Error "Missing variable" -ea Stop
                 }
                 else {
                     #Variable Exist
                     Switch ($ThisType) {
-                        "int" { $Script:PDSettings.Data.$Vault.$Name.Value -= $Value }
+                        "int" { $Script:PDSettings["data"][$vault][$name].Value -= $Value }
                         Default {
-                            if ($Script:PDSettings.Data.$Vault.$Name.Value | Where-Object { $_ -eq $Value } ) {
-                                $Script:PDSettings.Data.$Vault.$Name.Value = ( ( $Script:PDSettings.Data.$Vault.$Name.Value | Where-Object { $_ -ne $Value } ) -as $Script:PDSettings.Data.$Vault.$Name.Type ) 
+                            if ($Script:PDSettings["data"][$vault][$name].Value | Where-Object { $_ -eq $Value } ) {
+                                $Script:PDSettings["data"][$vault][$name].Value = ( ( $Script:PDSettings["data"][$vault][$name].Value | Where-Object { $_ -ne $Value } ) -as $Script:PDSettings["data"][$vault][$name].Type ) 
                             }
                             else { Write-Error "Value is incorrect, watching for equal value to remove." }
                         }
                     }
-                    $Script:PDSettings.Data.$Vault.$Name.Scope = $Scope
+                    $Script:PDSettings["data"][$vault][$name].Scope = $Scope
                     $update = $true
-                    Set-Variable -Name $Name -Value $Script:PDSettings.Data.$Vault.$Name.Value -Scope $Scope
+                    Set-Variable -Name $Name -Value $Script:PDSettings["data"][$vault][$name].Value -Scope $Scope
                 }
             }
             Default { $PsCmdlet.ParameterSetName | ConvertTo-Json ; Write-Error "Not correct ParameterSetName" -ErrorAction Stop }
@@ -306,7 +312,7 @@ Function Set-PersistentData {
     }
     End {
         if ($Update) {
-            Write-PersistentData -Data $Script:PDSettings.Data.$Vault -Path $Path -Vault $vault
+            Write-PersistentData -Data $Script:PDSettings["data"][$vault] -Path $Path -Vault $vault
         }
         #if ($Verbose) { 
         $end = [DateTime]::Now
@@ -353,7 +359,7 @@ Function Write-PersistentData {
             $hash.Name = $Key
             $list.add([PSCustomObject]$hash) | Out-Null
         }
-        $Script:PDSettings.Vault.$Vault.List = $list
+        $Script:PDSettings["Vault"][$vault].List = $list
 
         Out-File -FilePath $path -Encoding $Encoding -Force -InputObject ($list | ConvertTo-Json)
     }
@@ -407,8 +413,8 @@ Function Update-PersistentData {
         $first = $Vault
         #}
         # Update all values
-        foreach ($Key in $Script:PDSettings.Data.$Vault.Keys) {
-            $hash = $Script:PDSettings.Data.$Vault.$Key
+        foreach ($Key in $Script:PDSettings["data"][$vault].Keys) {
+            $hash = $Script:PDSettings["data"][$vault].$Key
             $ThisVar = Get-Variable -Name $key -Scope $hash.scope -ea ignore
             # Check if the there are a variable, Same dataType, if it is or containts an array or hash of some kind, (NOT ADDED SCOPE CHECK)
             if (
@@ -473,13 +479,13 @@ Function Show-PersistentData {
         Write-Verbose "Start of Show-PersistentData"
     }
     Process {
-        if ($AllLists) { $Script:PDSettings.Vault.Keys }
+        if ($AllLists) { $Script:PDSettings["Vault"].Keys }
         elseif ($AllListsAndAllData) {
             Show-PersistentData -AllLists | Show-PersistentData
         }
         else {
             Write-Warning "Containing inside of $vault"
-            $Script:PDSettings.Vault.$Vault.List
+            $Script:PDSettings["Vault"][$vault].List
         }
     }
     End {

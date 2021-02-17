@@ -50,7 +50,7 @@ Describe -Tags 'Performance',"PT","ConvertTo-OnePointHash" 'Performance ConvertT
             $Skipped  = measure-command { $data | ConvertTo-OnePointHash -UniqueID ID -SkipCheck }
             $OT = $Original.TotalMilliseconds
             $ST = $Skipped.TotalMilliseconds
-            $proc = [math]::Round( ($Original.TotalMilliseconds / $Skipped.TotalMilliseconds),2) * 100
+            $proc = [math]::Round( ($Original.TotalMilliseconds / $Skipped.TotalMilliseconds),2) * 100 - 100
             Write-Host "$proc % faster versus if it didn't made sure it did not exist, $ot`ms vs $st`ms"
             $Skipped.TotalMilliseconds -lt $Original.TotalMilliseconds |should -BeTrue
         }
@@ -59,7 +59,7 @@ Describe -Tags 'Performance',"PT","ConvertTo-OnePointHash" 'Performance ConvertT
             $Skipped  = measure-command { ConvertTo-OnePointHash -UniqueID ID -Array $data -SkipCheck }
             $OT = $Original.TotalMilliseconds
             $ST = $Skipped.TotalMilliseconds
-            $proc = [math]::Round( ($Original.TotalMilliseconds / $Skipped.TotalMilliseconds),2) * 100
+            $proc = [math]::Round( ($Original.TotalMilliseconds / $Skipped.TotalMilliseconds),2) * 100 - 100
             Write-Host "$proc % faster versus if it didn't made sure it did not exist, $ot`ms vs $st`ms"
             $Skipped.TotalMilliseconds -lt $Original.TotalMilliseconds |should -BeTrue
         }

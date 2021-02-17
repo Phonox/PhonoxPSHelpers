@@ -14,24 +14,24 @@ if ( !(Get-Module PhonoxsPSHelpers) -or !$global:lastImport -or $totalMS -gt 300
 Describe "PersistentData" -Tags "PersistentData" {
     It "Remove-PersistentData" {
         Remove-PersistentData Bajs
-        $bajs |Should -BeNullOrEmpty
+        $global:bajs |Should -BeNullOrEmpty
     }
     It "Set-PersistentData" {
         Set-PersistentData bajs "test"
-        $bajs | Should -be "test"
+        $global:bajs | Should -be "test"
     }
     it "New instance should find this new Persistent variable" {
         $test = powershell -Command "Import-Module $ModulePath -ea Ignore -Force -DisableNameChecking *>`$null ; return `$bajs "
-        start-sleep -s 2
+        #start-sleep -s 2
         Update-PersistentData
-        $test[-1] |should -be "test"
+        $test |should -be "test"
     }
     it "New instance should be able to remove an variable in the old instance" {
-        Set-ItResult -Skipped -Because "it doesn't have the feature yet."
+        #Set-ItResult -Skipped -Because "it doesn't have the feature yet."
         $null = powershell -Command "Import-Module $ModulePath -ea Ignore -Force -DisableNameChecking *>`$null ; Remove-PersistentData Bajs"
-        start-sleep -s 2
+        #start-sleep -s 1
         Update-PersistentData
-        start-sleep -s 5
-        $bajs |Should -BeNullOrEmpty
+        start-sleep -s 1
+        $global:bajs |Should -BeNullOrEmpty
     }
 }

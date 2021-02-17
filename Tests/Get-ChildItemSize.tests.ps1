@@ -11,7 +11,7 @@ if ( !(Get-Module PhonoxsPSHelpers) -or !$global:lastImport -or $totalMS -gt 300
     if (-Not (Get-Module PhonoxsPSHelpers ) ) { Import-Module $ModulePath -ea Ignore -Force *>$null }
 }
 
-Describe "Get-ChildItemSize" {
+Describe "Get-ChildItemSize" -tags "Get-ChildItemSize"{
     It "Should get the size of a file" {
         ( Get-ChildItemSize ( Join-Path (Join-Path $ScriptPath ..) PhonoxsPSHelpers.psd1) ).Length | should -BeGreaterThan 6062
     }

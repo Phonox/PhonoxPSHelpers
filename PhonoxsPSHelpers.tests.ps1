@@ -4,23 +4,10 @@ $ModuleName = ( Split-Path $PSCommandPath -Leaf ) -replace '\.tests\.ps1$'
 $File = "$ModuleName.psd1"
 $FilePath = Convert-Path (Join-Path $ScriptPath $File)
 if ( !(test-path $FilePath ) ) { Write-Error "Failed to find file" }
-#Import-Module $FilePath -ea Ignore
 $TestFolderPath = Join-Path $ScriptPath "Tests"
 
-#$modulename = "PhonoxsPSHelpers"
-# $sut = $PSCommandPath -replace '\.tests\.ps1$', '.psd1'
 
-# if ( !(Get-Module $modulename) ) { 
-#     Import-Module $ScriptPath -Force ; 
-#     #$imported = $true 
-# }
-# else {
-#     #$imported = $false
-#     Remove-Module $modulename -Force
-#     Import-Module $ScriptPath -Force
-# }
-
-Describe "Importing module" {
+Describe "Importing module" -Tags "Module" {
     Context "It should be no errors importing" {
         It "Importing should not result with any issues" {
             if ( !(Get-Module $modulename) ) { 
@@ -59,15 +46,22 @@ Describe "Importing module" {
         }
     }
     Context 'All functions should have a test file each' {
-        # $CommandFiles = $allCommands | ForEach-Object { ${Function:$_}.File }
-        # $CommandFiles = Split-Path ( ${function:$allCommands}.File | Sort-Object -Unique ) -Leaf
         $AllFiles = Get-ChildItem -File ( Join-Path $ScriptPath "Functions" ) | Select-Object -expand Name | ForEach-Object { $_ -replace '\.ps1', '.tests.ps1' }
         foreach ( $path in $AllFiles ) {
-            It "Testfile exists for: $path" {
-                $testFile = Join-Path $TestFolderPath $Path
-                $testFileExists = Test-Path $testFile
-                if ($testFileExists) {$testFileExists | Should -BeTrue}
-                else {
+            $testFile = Join-Path $TestFolderPath $Path
+            $testFileExists = Test-Path $testFile
+            if ($testFileExists) {
+                It "Testfile exists for: $path" {    
+                    $testFileExists | Should -BeTrue
+                }
+                It "All tests should have Describe: $path" {
+                    $testFile |should -FileContentMatch "Describe"
+                }
+                It "All tests should have tags: $path" {
+                    $testFile |should -FileContentMatch "-Tags"
+                }
+            }else {
+                It "Testfile exists for: $path" {    
                     Set-ItResult -Skipped -Because "they haven't been created yet"
                 }
             }
@@ -75,7 +69,6 @@ Describe "Importing module" {
     }
     Context 'Functions...' {
         It "should exist atleast 18 functions" {
-            #[int]$allCommands.count |should -BeGreaterOrEqual 18
             ($allCommands.count) | should -BeGreaterOrEqual 18
         }
     }
@@ -89,7 +82,6 @@ Describe "Importing module" {
         }
     }
 }
-#if ($imported) {Remove-Module $modulename}
 Import-LocalizedData -BaseDirectory $ScriptPath -FileName "$modulename.psd1" -BindingVariable data
 
 describe "Testing module manifest $ModuleName" {
@@ -104,34 +96,38 @@ describe "Testing module manifest $ModuleName" {
             $FilePath | Should -Exist 
         }
         # WIP
-        #It "Should have atleast 10 exported functions" {
-        #    $Manifest.ExportedFunctions.count | Should -BeGreaterThan 10
-        #}
+        It "Should have atleast 10 exported functions" {
+            Set-ItResult -Skipped -Because "feature has not been created"
+            $Manifest.ExportedFunctions.count | Should -BeGreaterThan 10
+        }
     }
     Context 'All NestedModules exists' {
         # WIP To get performance
-        #It "should include a NestedModules" {
-        #    $countedFiles = (gci $PSScriptRoot -file -Recurse |? {$_.name -notmatch "$modulename"} ).count
-        #    $data.NestedModules.count | Should -BeGreaterThan $countedFiles
-        #}
+        It "should include a NestedModules" {
+            Set-ItResult -Skipped -Because "feature has not been created"
+            #$countedFiles = (gci $PSScriptRoot -file -Recurse |? {$_.name -notmatch "$modulename"} ).count
+            #$data.NestedModules.count | Should -BeGreaterThan $countedFiles
+        }
         foreach ( $path in $data.NestedModules ) {
             It "Exists: $path" {
                 (Join-Path $PSScriptRoot $_) | should -Exist
             }
         }
     }
-    # Context 'All FileList exists'{
-    #     # WIP To get performance
-    #     #It "should include a FileList" {
-    #     #    $countedFiles = (gci $PSScriptRoot -file -Recurse |? {$_.name -notmatch "$modulename"} ).count
-    #     #    $data.FileList.count | Should -BeGreaterThan $countedFiles
-    #     #}
-    #     foreach ( $path in $data.FileList){
-    #         It "File should exist: $path" {
-    #             (Join-Path $PSScriptRoot $_) | should -Exist
-    #         }
-    #     }
-    # }
+    Context 'All FileList exists'{
+        # WIP To get performance
+        It "should include a FileList" {
+            Set-ItResult -Skipped -Because "feature has not been created"
+            #$countedFiles = (Get-ChildItem $PSScriptRoot -file -Recurse |Where-Object {$_.name -notmatch "$modulename"} ).count
+            #$data.FileList.count | Should -BeGreaterThan $countedFiles
+        }
+        foreach ( $path in $data.FileList){
+            It "File should exist: $path" {
+                Set-ItResult -Skipped -Because "feature has not been created"
+                #(Join-Path $PSScriptRoot $_) | should -Exist
+            }
+        }
+    }
     Context 'All ModuleListexists' {
         foreach ( $path in $data.ModuleListexists ) {
             It "$path should exist" {

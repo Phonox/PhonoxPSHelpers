@@ -8,7 +8,7 @@ Function Register-Watcher {
     .EXAMPLE
     Register-Watcher -folder (Split-Path $Path -Parent) -Filter (Split-Path $path -Leaf) -ActionChanged ([scriptblock]::Create("start-sleep -m 15 ; Update-PersistentData")) -Quiet
     #>
-    param(
+        param(
         [ValidateNotNullOrEmpty()]
         [ValidateScript( { (Test-Path $_ -IsValid ) -and (Get-Item $_ ).PSIsContainer })]
         $Folder,
@@ -45,7 +45,6 @@ Function Register-Watcher {
             if (!$Lastupdate) { $LastUpdate = @{} }
             if ( ($TimeStamp -eq $LastUpdate.$Path ) ) {return 1}
             $LastUpdate.$Path = $TimeStamp
-            Start-Sleep -Milliseconds ( Get-Random -Minimum 0 -Maximum 15)
             '
         )
         #. "D:\sweccis\_new\verktyg\PowerShellTools\ToolsForSkynet\PowerShellHelpers\Public\PowerLint.ps1"

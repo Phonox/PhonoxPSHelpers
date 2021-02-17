@@ -1,12 +1,6 @@
-﻿If (!$Script:StartedTimers) {
-    $Script:StartedTimers = @()
-    #"Instansierat"
-}
-$timer = New-Object timers.timer
-$timer.Interval = 1000
-        
+﻿        
 Function Set-Timer {
-    <#
+   <#
    .Synopsis
       Set a new timer
    .DESCRIPTION
@@ -98,45 +92,53 @@ $int
     [CmdletBinding(SupportsShouldProcess, DefaultParameterSetName = 'int')]
     Param(
         [Parameter(ValueFromPipeline,
-            ValueFromPipelineByPropertyName,
-            ValueFromRemainingArguments = $false,
-            Position = 0,
-            ParameterSetName = 'Minutes')]
+                   ValueFromPipelineByPropertyName,
+                   ValueFromRemainingArguments = $false,
+                   Position = 0,
+                   ParameterSetName = 'Minutes')]
         [ValidateNotNullOrEmpty()]
         #Type an integer to leave the parameter out
         [int]$Minutes,
         [Parameter(ValueFromPipeline,
-            ValueFromPipelineByPropertyName,
-            ValueFromRemainingArguments = $false,
-            Position = 0,
-            ParameterSetName = 'Decimal')]
+                   ValueFromPipelineByPropertyName,
+                   ValueFromRemainingArguments = $false,
+                   Position = 0,
+                   ParameterSetName = 'Decimal')]
         [ValidateNotNullOrEmpty()]
         #Type a decimal number(hours) to leave the parameter out
       
         [double]$DecimalHour,
         [Parameter(ValueFromPipeline,
-            ValueFromPipelineByPropertyName,
-            ValueFromRemainingArguments = $false,
-            Position = 0,
-            ParameterSetName = 'datetime')]
+                   ValueFromPipelineByPropertyName,
+                   ValueFromRemainingArguments = $false,
+                   Position = 0,
+                   ParameterSetName = 'datetime')]
         [ValidateNotNullOrEmpty()]
-        #Help about this parameter
+		#Help about this parameter
         [dateTime]$Date,
         [Parameter(ValueFromPipeline,
-            ValueFromPipelineByPropertyName,
-            ValueFromRemainingArguments = $false,
-            Position = 1)]
+                   ValueFromPipelineByPropertyName,
+                   ValueFromRemainingArguments = $false,
+                   Position = 1)]
         [string]$RemindMeOf,
         [Parameter(ValueFromPipeline,
-            ValueFromPipelineByPropertyName,
-            ValueFromRemainingArguments = $false,
-            Position = 2)]
+                   ValueFromPipelineByPropertyName,
+                   ValueFromRemainingArguments = $false,
+                   Position = 2)]
         [string[]]$ScriptBlock
     )
     Begin {
+        If (!$Script:StartedTimers) {
+            $Script:StartedTimers = @()
+            #"Instansierat"
+        }
+        if (!$Global:timer) {
+            $Global:timer = New-Object timers.timer
+            $Global:timer.Interval = 1000
+        }
     }
     Process {
-        #if ( $pscmdlet.ShouldProcess("Target", "Operation") )
+		#if ( $pscmdlet.ShouldProcess("Target", "Operation") )
         #{
         #}
         #write-host $time
@@ -180,8 +182,8 @@ $int
                 Get-Command Remove-Timer
             }
 "@)
-        Register-ObjectEvent -InputObject $timer -EventName elapsed -SourceIdentifier "Timer$newid" -Action $action -ErrorAction SilentlyContinue | Out-Null
-        $timer.Start()
+        Register-ObjectEvent -InputObject $Global:timer -EventName elapsed -SourceIdentifier "Timer$newid" -Action $action -ErrorAction SilentlyContinue | Out-Null
+        $Global:timer.Start()
 
         $CustomObject = [PSCustomObject]@{
             Time       = $NewTimer;
@@ -198,7 +200,7 @@ $int
 
 
 Function Get-Timer {
-    <#
+<#
 .Synopsis
    Get all timers
 .DESCRIPTION
@@ -219,7 +221,7 @@ Function Get-Timer {
         #           ValueFromRemainingArguments=$false,
         #           Position=0)]
         #[ValidateNotNullOrEmpty()]
-        ##Help about this parameter
+		##Help about this parameter
         #$Stuff
         [switch]$CommingUp
     )
@@ -227,7 +229,7 @@ Function Get-Timer {
     
     }
     Process {
-        $Script:StartedTimers | Sort-Object Time #| select -First 1
+		$Script:StartedTimers | Sort-Object Time #| select -First 1
     }
     End {
         
@@ -236,7 +238,7 @@ Function Get-Timer {
 
 
 Function Remove-Timer {
-    <#
+<#
 .Synopsis
    Remove a timer
 .DESCRIPTION
@@ -258,7 +260,7 @@ Function Remove-Timer {
         #           ValueFromRemainingArguments=$false,
         #           Position=0)]
         #[ValidateNotNullOrEmpty()]
-        ##Help about this parameter
+		##Help about this parameter
         [int]$ID,
         [switch]$All
     )
@@ -268,24 +270,24 @@ Function Remove-Timer {
     Process {
         if ($all) {
             $Script:StartedTimers | ForEach-Object {
-                $Timer.stop()
-                unregister-event "Timer$ID" -ErrorAction Continue
+                $Global:Timer.stop()
+                unregister-event "Timer$ID" -ErrorAction Continue -Force
             }
             $Script:StartedTimers = @()
         }
         elseif ($id) {
-            $Script:StartedTimers = $Script:StartedTimers | ForEach-Object { 
+            $Script:StartedTimers = @($Script:StartedTimers | ForEach-Object { 
                 if ( $_.ID -ne $ID ) { $_ }
                 else {
-                    $Timer.stop() | Out-Host
-                    unregister-event "Timer$ID" -ErrorAction Continue | Out-Host
+                    $Global:Timer.stop() | Out-Host
+                    unregister-event "Timer$ID" -ErrorAction Continue -Force | Out-Host
                 }
-            }
+            } )
         }
     }
     End {
         if (!$Script:StartedTimers) { $Script:StartedTimers = @() }
-        else { $Timer.Start() }
+        else { $Global:Timer.Start() }
         return ""
     }
 }
