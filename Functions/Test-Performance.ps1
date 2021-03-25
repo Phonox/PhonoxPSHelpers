@@ -78,37 +78,38 @@ Do{}While()       00:00:00.8762461         1 7.1.2          Mac      True
     )
     Process {
         if ($MultipleTest) {
+            $return = @()
             if ($Individual) {
                 $NewSB = [scriptblock]::Create(  "1..$repeat |Foreach-object { Measure-Command {$sb} }" )
-                Test-Performance -Individual:$false -Name "|Foreach_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
-                
+                $return += Test-Performance -Individual:$false -Name "|Foreach_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
+
                 $NewSB = [scriptblock]::Create(  "Foreach( `$i in 1..$repeat ){ Measure-Command {$sb} }" )
-                Test-Performance -Individual:$false -Name "Foreach(){}_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false
+                $return += Test-Performance -Individual:$false -Name "Foreach(){}_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
 
                 $NewSB = [scriptblock]::Create(  "(1..$repeat).Foreach{ Measure-Command {$sb} }" )
-                Test-Performance -Individual:$false -Name ".Foreach{}_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false
+                $return += Test-Performance -Individual:$false -Name ".Foreach{}_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
 
                 $NewSB = [scriptblock]::Create(  "for(`$int=0;`$int -lt `$repeat; `$int++){Measure-Command {$sb} }" )
-                Test-Performance -Individual:$false -Name "For_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false
-                Continue
+                $return += Test-Performance -Individual:$false -Name "For_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
+                return $return
             }
             else {
                 $NewSB = [scriptblock]::Create(  "Measure-Command { 1..$repeat |Foreach-object { $sb } }" )
-                Test-Performance -Individual:$false -Name "|Foreach_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
-                
+                $return += Test-Performance -Individual:$false -Name "|Foreach_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
+
                 $NewSB = [scriptblock]::Create(  "Measure-Command { Foreach( `$i in 1..$repeat ){ $sb } }" )
-                Test-Performance -Individual:$false -Name "Foreach(){}_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false
+                $return += Test-Performance -Individual:$false -Name "Foreach(){}_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
 
                 $NewSB = [scriptblock]::Create(  "Measure-Command { (1..$repeat).Foreach{ $sb } }" )
-                Test-Performance -Individual:$false -Name ".Foreach{}_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false
+                $return += Test-Performance -Individual:$false -Name ".Foreach{}_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
 
                 $NewSB = [scriptblock]::Create(  "Measure-Command { for(`$int=0;`$int -lt `$repeat; `$int++){$sb} }" )
-                Test-Performance -Individual:$false -Name "For_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false
-                Continue
+                $return += Test-Performance -Individual:$false -Name "For_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
+                return $return
             }
         }
         if ($Individual) {
-            
+
             $Times = (1..$repeat | Foreach-object { Measure-Command $sb } ) | Measure-Object -Minimum -Maximum -Average -Property TotalMilliseconds
             $name = "Individ_" + $name
 
@@ -123,7 +124,7 @@ Do{}While()       00:00:00.8762461         1 7.1.2          Mac      True
         elseif ($Islinux) { $OS = "Linux" }
         else { $OS = "Win" }
 
-        $hash = [Ordered]@{ 
+        $hash = [Ordered]@{
             Name = $Name
             Time = $test
         }
@@ -134,7 +135,7 @@ Do{}While()       00:00:00.8762461         1 7.1.2          Mac      True
         else {
             $hash.TimesExec = $Repeat
         }
-        
+
         $hash.PSVersionTable = $PSVersionTable.PSVersion.ToString()
         $hash.OS = $OS
         $hash.IsCoreCLR = [bool]$IsCoreCLR
