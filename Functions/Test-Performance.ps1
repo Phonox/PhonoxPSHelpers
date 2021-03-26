@@ -65,10 +65,13 @@ Do{}While()       00:00:00.8762461         1 7.1.2          Mac      True
     Param(
         [ValidateNotNullOrEmpty()]
         [Parameter(Mandatory, ValueFromPipelineByPropertyName, Position = 0)]
+        [Alias("N")]
         [string]$Name,
         [ValidateNotNullOrEmpty()]
         [Parameter(Mandatory, ValueFromPipelineByPropertyName, ValueFromPipeline, Position = 1)]
-        [ScriptBlock]$SB,
+        [Alias("SB")]
+        [Alias("E")]
+        [ScriptBlock]$ScriptBlock,
         [Parameter(ValueFromPipelineByPropertyName)]
         [int]$Repeat = 1,
         [Parameter(ValueFromPipelineByPropertyName)]
@@ -80,43 +83,45 @@ Do{}While()       00:00:00.8762461         1 7.1.2          Mac      True
         if ($MultipleTest) {
             $return = @()
             if ($Individual) {
-                $NewSB = [scriptblock]::Create(  "1..$repeat |Foreach-object { Measure-Command {$sb} }" )
+                $NewSB = [scriptblock]::Create(  "1..$repeat |Foreach-object { Measure-Command {$ScriptBlock} }" )
                 $return += Test-Performance -Individual:$false -Name "|Foreach_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
 
-                $NewSB = [scriptblock]::Create(  "Foreach( `$i in 1..$repeat ){ Measure-Command {$sb} }" )
+                $NewSB = [scriptblock]::Create(  "Foreach( `$i in 1..$repeat ){ Measure-Command {$ScriptBlock} }" )
                 $return += Test-Performance -Individual:$false -Name "Foreach(){}_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
 
-                $NewSB = [scriptblock]::Create(  "(1..$repeat).Foreach{ Measure-Command {$sb} }" )
+                $NewSB = [scriptblock]::Create(  "(1..$repeat).Foreach{ Measure-Command {$ScriptBlock} }" )
                 $return += Test-Performance -Individual:$false -Name ".Foreach{}_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
 
-                $NewSB = [scriptblock]::Create(  "for(`$int=0;`$int -lt `$repeat; `$int++){Measure-Command {$sb} }" )
+                $NewSB = [scriptblock]::Create(  "for(`$int=0;`$int -lt `$repeat; `$int++){Measure-Command {$ScriptBlock} }" )
                 $return += Test-Performance -Individual:$false -Name "For_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
                 return $return
             }
             else {
-                $NewSB = [scriptblock]::Create(  "Measure-Command { 1..$repeat |Foreach-object { $sb } }" )
+                $NewSB = [scriptblock]::Create(  "Measure-Command { 1..$repeat |Foreach-object { $ScriptBlock } }" )
                 $return += Test-Performance -Individual:$false -Name "|Foreach_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
 
-                $NewSB = [scriptblock]::Create(  "Measure-Command { Foreach( `$i in 1..$repeat ){ $sb } }" )
+                $NewSB = [scriptblock]::Create(  "Measure-Command { Foreach( `$i in 1..$repeat ){ $ScriptBlock } }" )
                 $return += Test-Performance -Individual:$false -Name "Foreach(){}_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
 
-                $NewSB = [scriptblock]::Create(  "Measure-Command { (1..$repeat).Foreach{ $sb } }" )
+                $NewSB = [scriptblock]::Create(  "Measure-Command { (1..$repeat).Foreach{ $ScriptBlock } }" )
                 $return += Test-Performance -Individual:$false -Name ".Foreach{}_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
 
-                $NewSB = [scriptblock]::Create(  "Measure-Command { for(`$int=0;`$int -lt `$repeat; `$int++){$sb} }" )
+                $NewSB = [scriptblock]::Create(  "Measure-Command { for(`$int=0;`$int -lt `$repeat; `$int++){$ScriptBlock} }" )
                 $return += Test-Performance -Individual:$false -Name "For_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
                 return $return
             }
         }
         if ($Individual) {
 
-            $Times = (1..$repeat | Foreach-object { Measure-Command $sb } ) | Measure-Object -Minimum -Maximum -Average -Property TotalMilliseconds
+            $Times = (1..$repeat | Foreach-object { Measure-Command $ScriptBlock } ) | Measure-Object -Minimum -Maximum -Average -Property TotalMilliseconds
             $name = "Individ_" + $name
 
             $test = [TimeSpan]::FromMilliseconds( $times.Average )
+        }elseif ($repeat -eq 1) {
+            $test = Measure-Command $ScriptBlock
         }
         else {
-            $NewSB = [scriptblock]::Create( "1..$repeat|foreach-object {$sb}")
+            $NewSB = [scriptblock]::Create( "1..$repeat|foreach-object {$ScriptBlock}")
             $test = Measure-Command $NewSB
         }
         if ($isWindows) { $OS = "Win" }
@@ -142,4 +147,4 @@ Do{}While()       00:00:00.8762461         1 7.1.2          Mac      True
         return ( [PSCustomObject]$hash )
     }
 }
-# Export-ModuleMember -Function Test-Performance
+Export-ModuleMember -Function Test-Performance
