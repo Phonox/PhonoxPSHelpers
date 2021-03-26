@@ -79,35 +79,36 @@ Do{}While()       00:00:00.8762461         1 7.1.2          Mac      True
         [int]$OutputOfRepeat,
         [switch]$MultipleTest
     )
+    Begin{$Start = [datetime]::now}
     Process {
         if ($MultipleTest) {
-            $return = @()
+            $return = [System.Collections.ArrayList]@()
             if ($Individual) {
                 $NewSB = [scriptblock]::Create(  "1..$repeat |Foreach-object { Measure-Command {$ScriptBlock} }" )
-                $return += Test-Performance -Individual:$false -Name "|Foreach_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
+                [void]$return.Add( ( Test-Performance -Individual:$false -Name "|Foreach_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1 ) )
 
                 $NewSB = [scriptblock]::Create(  "Foreach( `$i in 1..$repeat ){ Measure-Command {$ScriptBlock} }" )
-                $return += Test-Performance -Individual:$false -Name "Foreach(){}_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
+                [void]$return.Add( ( Test-Performance -Individual:$false -Name "Foreach(){}_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1 ))
 
                 $NewSB = [scriptblock]::Create(  "(1..$repeat).Foreach{ Measure-Command {$ScriptBlock} }" )
-                $return += Test-Performance -Individual:$false -Name ".Foreach{}_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
+                [void]$return.Add( ( Test-Performance -Individual:$false -Name ".Foreach{}_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1 ))
 
                 $NewSB = [scriptblock]::Create(  "for(`$int=0;`$int -lt `$repeat; `$int++){Measure-Command {$ScriptBlock} }" )
-                $return += Test-Performance -Individual:$false -Name "For_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
+                [void]$return.Add( ( Test-Performance -Individual:$false -Name "For_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1 ))
                 return $return
             }
             else {
                 $NewSB = [scriptblock]::Create(  "Measure-Command { 1..$repeat |Foreach-object { $ScriptBlock } }" )
-                $return += Test-Performance -Individual:$false -Name "|Foreach_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
+                [void]$return.Add( ( Test-Performance -Individual:$false -Name "|Foreach_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1 ))
 
                 $NewSB = [scriptblock]::Create(  "Measure-Command { Foreach( `$i in 1..$repeat ){ $ScriptBlock } }" )
-                $return += Test-Performance -Individual:$false -Name "Foreach(){}_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
+                [void]$return.Add( ( Test-Performance -Individual:$false -Name "Foreach(){}_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1 ))
 
                 $NewSB = [scriptblock]::Create(  "Measure-Command { (1..$repeat).Foreach{ $ScriptBlock } }" )
-                $return += Test-Performance -Individual:$false -Name ".Foreach{}_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
+                [void]$return.Add( ( Test-Performance -Individual:$false -Name ".Foreach{}_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1 ))
 
                 $NewSB = [scriptblock]::Create(  "Measure-Command { for(`$int=0;`$int -lt `$repeat; `$int++){$ScriptBlock} }" )
-                $return += Test-Performance -Individual:$false -Name "For_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
+                [void]$return.Add( ( Test-Performance -Individual:$false -Name "For_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1 ))
                 return $return
             }
         }
@@ -146,5 +147,6 @@ Do{}While()       00:00:00.8762461         1 7.1.2          Mac      True
         $hash.IsCoreCLR = [bool]$IsCoreCLR
         return ( [PSCustomObject]$hash )
     }
+    End{ if ($MultipleTest){ write-host "Total time" ( ([datetime]::now) -$start).tostring() } }
 }
 Export-ModuleMember -Function Test-Performance
