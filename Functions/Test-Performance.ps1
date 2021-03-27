@@ -67,19 +67,18 @@ Do{}While()       00:00:00.8762461         1 7.1.2          Mac      True
 |Where prop -gt a 00:00:03.8548739         1 7.1.2          Mac      True
 |Where {}         00:00:04.5049549         1 7.1.2          Mac      True
 .EXAMPLE
-$first= ' test ';$last='stand';$repeats =10000 ;
+$first= ' test ';$last='stand';$repeats =1000 ;
 $tests = (
-    @{Name='Format';     ScriptBlock={[string]::Format('Hello{0}{1}.',$first,$last)}},
-    @{Name='ConcatPS';   ScriptBlock={ "hello" + "$first" + "$last" }},
-    @{Name='ConcatPSAsLit';   ScriptBlock={ 'hello' + $first + $last }},
-    @{Name='DynamicString';   ScriptBlock={ "hello$first$last" }},
-    @{Name='QuickFormat';ScriptBlock={'Hello{0}{1}.' -f $first, $last} },
-    @{Name='ConcatC#';   ScriptBlock={ [string]::Concat('hello',$first,$last) } },
-    @{Name='PS-Join';    ScriptBlock={"Hello",$first,$last -join ""} } 
-).Foreach{[pscustomobject]$_} |Test-Performance -MultipleTest -Repeat $repeats -Individual 
-
-$tests |Sort-Object Time |ft -AutoSize 
-$tests |Sort-Object TotalTime |ft -AutoSize
+    @{Name='Format';       ScriptBlock={[string]::Format('Hello{0}{1}.',$first,$last)}},
+    @{Name='ConcatPS';     ScriptBlock={"hello" + "$first" + "$last" }},
+    @{Name='ConcatPSAsLit';ScriptBlock={'hello' + $first + $last }},
+    @{Name='DynamicString';ScriptBlock={"hello$first$last" }},
+    @{Name='QuickFormat';  ScriptBlock={'Hello{0}{1}.' -f $first, $last} },
+    @{Name='ConcatC#';     ScriptBlock={[string]::Concat('hello',$first,$last) } },
+    @{Name='PS-Join';      ScriptBlock={"Hello",$first,$last -join ""} }
+).Foreach{[pscustomobject]$_} |Test-Performance -MultipleTest -Repeat $repeats -Individual
+$tests |Sort-Object Time |Format-Table -AutoSize
+$tests |Sort-Object TotalTime |Format-Table -AutoSize
     #>
     [CmdletBinding()]
     [OutputType([PSCustomObject])]
@@ -96,8 +95,10 @@ $tests |Sort-Object TotalTime |ft -AutoSize
         [Parameter(ValueFromPipelineByPropertyName)]
         [int][ValidateScript({$_ -gt 0})]$Repeat = 1,
         [Parameter(ValueFromPipelineByPropertyName)]
+        # Run each test individual and see how it's run multiple times. In short, 1..4|foreach {measure-object $scriptblock}|measure-object
         [switch]$Individual,
         [int]$OutputOfRepeat,
+        # Run each test in a bunch of different loops to see the difference. In short, measure-command { 1..4|foreach { $scriptblock } } but different loops
         [switch]$MultipleTest
     )
     Begin{$Start = [datetime]::now}
@@ -105,24 +106,21 @@ $tests |Sort-Object TotalTime |ft -AutoSize
         if ($MultipleTest) {
             $return = [System.Collections.ArrayList]@()
             if ($Individual) {
-                #$NewSB = [scriptblock]::Create( ([string]::Concat('1..',$repeat,' |Foreach-object { Measure-Command {',$ScriptBlock,'} }' ) ) )
                 $NewSB = [scriptblock]::Create(  "1..$repeat |Foreach-object { Measure-Command {$ScriptBlock} }" )
                 $ThisStart = [datetime]::now
                 $thisTest = Test-Performance -Individual:$false -Name "|Foreach_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
                 $end = ([datetime]::now) - $ThisStart
-                
+
                 $thisTest  | Add-Member -NotePropertyName TotalTime -NotePropertyValue $end
                 [void]$return.Add( $thisTest )
 
-                #NewSB = [scriptblock]::Create( ([string]::Concat( 'Foreach( $i in 1..',$repeat,' ){ Measure-Command {',$ScriptBlock,'} }' )))
                 $NewSB = [scriptblock]::Create(  "Foreach( `$i in 1..$repeat ){ Measure-Command {$ScriptBlock} }" )
                 $ThisStart = [datetime]::now
                 $thisTest = Test-Performance -Individual:$false -Name "Foreach(){}_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
                 $end = ([datetime]::now) - $ThisStart
                 $thisTest  | Add-Member -NotePropertyName TotalTime -NotePropertyValue $end
-                [void]$return.Add( $thisTest ) 
+                [void]$return.Add( $thisTest )
 
-                #$NewSB = [scriptblock]::Create( ([string]::Concat( '(1..',$repeat,').Foreach{ Measure-Command {',$ScriptBlock,'} }' )))
                 $NewSB = [scriptblock]::Create(  "(1..$repeat).Foreach{ Measure-Command {$ScriptBlock} }" )
                 $start = [datetime]::now
                 $thisTest = Test-Performance -Individual:$false -Name ".Foreach{}_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
@@ -130,31 +128,68 @@ $tests |Sort-Object TotalTime |ft -AutoSize
                 $thisTest  | Add-Member -NotePropertyName TotalTime -NotePropertyValue $end
                 [void]$return.Add( $thisTest )
 
-                #$NewSB = [scriptblock]::Create( ([string]::Concat( 'for($int=0;$int -lt $repeat; $int++){Measure-Command {',$scriptblock,'} }' )))
-                $NewSB = [scriptblock]::Create(  "for(`$int=0;`$int -lt `$repeat; `$int++){Measure-Command {$ScriptBlock} }" )
+                $NewSB = [scriptblock]::Create(  "for(`$ThisUniqueint=0;`$ThisUniqueint -lt `$repeat; `$ThisUniqueint++){Measure-Command {$ScriptBlock} }" )
                 $start = [datetime]::now
                 $thisTest =Test-Performance -Individual:$false -Name "For_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
+                $end = ([datetime]::now) - $ThisStart
+                $thisTest  | Add-Member -NotePropertyName TotalTime -NotePropertyValue $end
+                [void]$return.Add( $thisTest )
+
+                $NewSB = [scriptblock]::Create( ( "`$ThisUniqueint=0;while(`$ThisUniqueint -lt $repeat){ measure-command { $ScriptBlock };`$ThisUniqueint++ }" ) )
+                $start = [datetime]::now
+                $thisTest =Test-Performance -Individual:$false -Name "While_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
+                $end = ([datetime]::now) - $ThisStart
+                $thisTest  | Add-Member -NotePropertyName TotalTime -NotePropertyValue $end
+                [void]$return.Add( $thisTest )
+
+                $NewSB = [scriptblock]::Create( ( "`$ThisUniqueint=0;Do{ Measure-Command { $ScriptBlock } ;`$ThisUniqueint++ }while(`$ThisUniqueint -lt $repeat )" ) )
+                $start = [datetime]::now
+                $thisTest =Test-Performance -Individual:$false -Name "DoWhile_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
+                $end = ([datetime]::now) - $ThisStart
+                $thisTest  | Add-Member -NotePropertyName TotalTime -NotePropertyValue $end
+                [void]$return.Add( $thisTest )
+
+                $NewSB = [scriptblock]::Create( ( "`$ThisUniqueint=0;Do{Measure-Command { $ScriptBlock } ;`$ThisUniqueint++ }until(`$ThisUniqueint -ge $repeat )") )
+                $start = [datetime]::now
+                $thisTest =Test-Performance -Individual:$false -Name "DoUntil_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
                 $end = ([datetime]::now) - $ThisStart
                 $thisTest  | Add-Member -NotePropertyName TotalTime -NotePropertyValue $end
                 [void]$return.Add( $thisTest )
                 return $return
             }
             else {
-                #$NewSB = [scriptblock]::Create( ([string]::Concat( 'Measure-Command { 1..',$repeat,' |Foreach-object { ',$scriptblock,' } }' )))
                 $NewSB = [scriptblock]::Create(  "Measure-Command { 1..$repeat |Foreach-object { $ScriptBlock } }" )
                 [void]$return.Add( ( Test-Performance -Individual:$false -Name "|Foreach_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1 ))
 
-                #$NewSB = [scriptblock]::Create( ([string]::Concat( 'Measure-Command { Foreach( $i in 1..',$repeat,' ){ ',$ScriptBlock,' } }' )))
                 $NewSB = [scriptblock]::Create(  "Measure-Command { Foreach( `$i in 1..$repeat ){ $ScriptBlock } }" )
                 [void]$return.Add( ( Test-Performance -Individual:$false -Name "Foreach(){}_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1 ))
 
-                #$NewSB = [scriptblock]::Create( ([string]::Concat( 'Measure-Command { (1..',$repeat,').Foreach{ ',$ScriptBlock,' } }' )))
                 $NewSB = [scriptblock]::Create(  "Measure-Command { (1..$repeat).Foreach{ $ScriptBlock } }" )
                 [void]$return.Add( ( Test-Performance -Individual:$false -Name ".Foreach{}_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1 ))
 
-                #$NewSB = [scriptblock]::Create( ([string]::Concat( 'Measure-Command { for($int=0;$int -lt $repeat; $int++){',$ScriptBlock,' } }' )))
-                $NewSB = [scriptblock]::Create(  "Measure-Command { for(`$int=0;`$int -lt `$repeat; `$int++){$ScriptBlock} }" )
+                $NewSB = [scriptblock]::Create(  "Measure-Command { for(`$ThisUniqueint=0;`$ThisUniqueint -lt `$repeat; `$ThisUniqueint++){$ScriptBlock ; `$ThisUniqueint++} }" )
                 [void]$return.Add( ( Test-Performance -Individual:$false -Name "For_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1 ))
+
+                $NewSB = [scriptblock]::Create( ( '$ThisUniqueint=0;while($ThisUniqueint -lt {0} ){ {1} } }' -f $repeat,$ScriptBlock ) )
+                $start = [datetime]::now
+                $thisTest =Test-Performance -Individual:$false -Name "While_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
+                $end = ([datetime]::now) - $ThisStart
+                $thisTest  | Add-Member -NotePropertyName TotalTime -NotePropertyValue $end
+                [void]$return.Add( $thisTest )
+
+                $NewSB = [scriptblock]::Create( ( "`$ThisUniqueint=0;Do{ $scriptblock ;`$ThisUniqueint++ }while(`$ThisUniqueint -lt {0} )") )
+                $start = [datetime]::now
+                $thisTest =Test-Performance -Individual:$false -Name "DoWhile_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
+                $end = ([datetime]::now) - $ThisStart
+                $thisTest  | Add-Member -NotePropertyName TotalTime -NotePropertyValue $end
+                [void]$return.Add( $thisTest )
+
+                $NewSB = [scriptblock]::Create( ( "`$ThisUniqueint=0;Do{ $scriptblock ;`$ThisUniqueint++ }until(`$ThisUniqueint -ge $repeat )") )
+                $start = [datetime]::now
+                $thisTest =Test-Performance -Individual:$false -Name "DoUntil_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
+                $end = ([datetime]::now) - $ThisStart
+                $thisTest  | Add-Member -NotePropertyName TotalTime -NotePropertyValue $end
+                [void]$return.Add( $thisTest )
                 return $return
             }
         }
@@ -168,7 +203,7 @@ $tests |Sort-Object TotalTime |ft -AutoSize
             $test = Measure-Command $ScriptBlock
         }
         else {
-            $NewSB = [scriptblock]::Create( "for(`$int=0;`$int -lt $repeat;`$int++){$ScriptBlock}")
+            $NewSB = [scriptblock]::Create( "for(`$ThisUniqueint=0;`$ThisUniqueint -lt $repeat;`$ThisUniqueint++){$ScriptBlock}")
             $test = Measure-Command $NewSB
         }
         if ($isWindows)   { $OS = "Win" }
@@ -189,8 +224,7 @@ $tests |Sort-Object TotalTime |ft -AutoSize
 
         $hash.PSVersion = $PSVersionTable.PSVersion.ToString()
         $hash.OS = $OS
-        #$hash.IsCoreCLR = [bool]$IsCoreCLR
-        $hash.CRL = if ($isCoreCLR){"Core"}elseif($psISE){"ISE"}else{"Console"}
+        $hash.CRL = if ($isCoreCLR){"CoreCLR"}elseif($psISE){"ISE"}else{$PSVersionTable.PSEdition.ToString()}
         if ($Individual){ $hash.TotalTime = $ThisEnd}
         if ($Individual) { $hash.Maximum = $times.Maximum ; $hash.Minimum = $times.Minimum }
         return ( [PSCustomObject]$hash )
