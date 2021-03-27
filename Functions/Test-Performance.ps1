@@ -4,11 +4,17 @@ Function Test-Performance {
     When you need to test performance for difference things and need to sort them better with name and time
     .EXAMPLE
 $tests = @()
-$tests += Test-Performance NewObject {$null = New-Object System.Collections.ArrayList} -repeat 10000
-$tests += Test-Performance QuickInstance {$null = [System.Collections.ArrayList]@() }  -repeat 10000
+$tests += Test-Performance NullNewObject {$null = New-Object System.Collections.ArrayList} -repeat 10000
+$tests += Test-Performance VoidNewObject {[void] (New-Object System.Collections.ArrayList)} -repeat 10000
+$tests += Test-Performance VoidNewObject {New-Object System.Collections.ArrayList >$null} -repeat 10000
+$tests += Test-Performance VoidNewObject {New-Object System.Collections.ArrayList |out-null} -repeat 10000
+$tests += Test-Performance NullQuickInstance {$null = [System.Collections.ArrayList]@() }  -repeat 10000
+$tests += Test-Performance VoidQuickInstance {[void][System.Collections.ArrayList]@() }  -repeat 10000
+$tests += Test-Performance QuickInstanceNull {[System.Collections.ArrayList]@()>$null }  -repeat 10000
+$tests += Test-Performance QuickInstanceOutNull {[System.Collections.ArrayList]@()|out-null }  -repeat 10000
 $tests += Test-Performance NewObject {$null = New-Object System.Collections.ArrayList} -repeat 10000 -Individual
 $tests += Test-Performance QuickInstance {$null = [System.Collections.ArrayList]@() }  -repeat 10000 -Individual
-$tests |sort-object time| ft -auto name,time
+$tests |sort-object time| ft -auto
 #old result
 Name           : QuickInstance
 Time           : 00:00:00.0236146
@@ -60,8 +66,23 @@ Do{}While()       00:00:00.8762461         1 7.1.2          Mac      True
 |ForEach-Object   00:00:02.3790807         1 7.1.2          Mac      True
 |Where prop -gt a 00:00:03.8548739         1 7.1.2          Mac      True
 |Where {}         00:00:04.5049549         1 7.1.2          Mac      True
+.EXAMPLE
+$first= ' test ';$last='stand';$repeats =10000 ;
+$tests = (
+    @{Name='Format';     ScriptBlock={[string]::Format('Hello{0}{1}.',$first,$last)}},
+    @{Name='ConcatPS';   ScriptBlock={ "hello" + "$first" + "$last" }},
+    @{Name='ConcatPSAsLit';   ScriptBlock={ 'hello' + $first + $last }},
+    @{Name='DynamicString';   ScriptBlock={ "hello$first$last" }},
+    @{Name='QuickFormat';ScriptBlock={'Hello{0}{1}.' -f $first, $last} },
+    @{Name='ConcatC#';   ScriptBlock={ [string]::Concat('hello',$first,$last) } },
+    @{Name='PS-Join';    ScriptBlock={"Hello",$first,$last -join ""} } 
+).Foreach{[pscustomobject]$_} |Test-Performance -MultipleTest -Repeat $repeats -Individual 
+
+$tests |Sort-Object Time |ft -AutoSize 
+$tests |Sort-Object TotalTime |ft -AutoSize
     #>
     [CmdletBinding()]
+    [OutputType([PSCustomObject])]
     Param(
         [ValidateNotNullOrEmpty()]
         [Parameter(Mandatory, ValueFromPipelineByPropertyName, Position = 0)]
@@ -73,7 +94,7 @@ Do{}While()       00:00:00.8762461         1 7.1.2          Mac      True
         [Alias("E")]
         [ScriptBlock]$ScriptBlock,
         [Parameter(ValueFromPipelineByPropertyName)]
-        [int]$Repeat = 1,
+        [int][ValidateScript({$_ -gt 0})]$Repeat = 1,
         [Parameter(ValueFromPipelineByPropertyName)]
         [switch]$Individual,
         [int]$OutputOfRepeat,
@@ -84,57 +105,81 @@ Do{}While()       00:00:00.8762461         1 7.1.2          Mac      True
         if ($MultipleTest) {
             $return = [System.Collections.ArrayList]@()
             if ($Individual) {
+                #$NewSB = [scriptblock]::Create( ([string]::Concat('1..',$repeat,' |Foreach-object { Measure-Command {',$ScriptBlock,'} }' ) ) )
                 $NewSB = [scriptblock]::Create(  "1..$repeat |Foreach-object { Measure-Command {$ScriptBlock} }" )
-                [void]$return.Add( ( Test-Performance -Individual:$false -Name "|Foreach_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1 ) )
+                $ThisStart = [datetime]::now
+                $thisTest = Test-Performance -Individual:$false -Name "|Foreach_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
+                $end = ([datetime]::now) - $ThisStart
+                
+                $thisTest  | Add-Member -NotePropertyName TotalTime -NotePropertyValue $end
+                [void]$return.Add( $thisTest )
 
+                #NewSB = [scriptblock]::Create( ([string]::Concat( 'Foreach( $i in 1..',$repeat,' ){ Measure-Command {',$ScriptBlock,'} }' )))
                 $NewSB = [scriptblock]::Create(  "Foreach( `$i in 1..$repeat ){ Measure-Command {$ScriptBlock} }" )
-                [void]$return.Add( ( Test-Performance -Individual:$false -Name "Foreach(){}_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1 ))
+                $ThisStart = [datetime]::now
+                $thisTest = Test-Performance -Individual:$false -Name "Foreach(){}_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
+                $end = ([datetime]::now) - $ThisStart
+                $thisTest  | Add-Member -NotePropertyName TotalTime -NotePropertyValue $end
+                [void]$return.Add( $thisTest ) 
 
+                #$NewSB = [scriptblock]::Create( ([string]::Concat( '(1..',$repeat,').Foreach{ Measure-Command {',$ScriptBlock,'} }' )))
                 $NewSB = [scriptblock]::Create(  "(1..$repeat).Foreach{ Measure-Command {$ScriptBlock} }" )
-                [void]$return.Add( ( Test-Performance -Individual:$false -Name ".Foreach{}_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1 ))
+                $start = [datetime]::now
+                $thisTest = Test-Performance -Individual:$false -Name ".Foreach{}_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
+                $end = ([datetime]::now) - $ThisStart
+                $thisTest  | Add-Member -NotePropertyName TotalTime -NotePropertyValue $end
+                [void]$return.Add( $thisTest )
 
+                #$NewSB = [scriptblock]::Create( ([string]::Concat( 'for($int=0;$int -lt $repeat; $int++){Measure-Command {',$scriptblock,'} }' )))
                 $NewSB = [scriptblock]::Create(  "for(`$int=0;`$int -lt `$repeat; `$int++){Measure-Command {$ScriptBlock} }" )
-                [void]$return.Add( ( Test-Performance -Individual:$false -Name "For_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1 ))
+                $start = [datetime]::now
+                $thisTest =Test-Performance -Individual:$false -Name "For_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1
+                $end = ([datetime]::now) - $ThisStart
+                $thisTest  | Add-Member -NotePropertyName TotalTime -NotePropertyValue $end
+                [void]$return.Add( $thisTest )
                 return $return
             }
             else {
+                #$NewSB = [scriptblock]::Create( ([string]::Concat( 'Measure-Command { 1..',$repeat,' |Foreach-object { ',$scriptblock,' } }' )))
                 $NewSB = [scriptblock]::Create(  "Measure-Command { 1..$repeat |Foreach-object { $ScriptBlock } }" )
                 [void]$return.Add( ( Test-Performance -Individual:$false -Name "|Foreach_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1 ))
 
+                #$NewSB = [scriptblock]::Create( ([string]::Concat( 'Measure-Command { Foreach( $i in 1..',$repeat,' ){ ',$ScriptBlock,' } }' )))
                 $NewSB = [scriptblock]::Create(  "Measure-Command { Foreach( `$i in 1..$repeat ){ $ScriptBlock } }" )
                 [void]$return.Add( ( Test-Performance -Individual:$false -Name "Foreach(){}_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1 ))
 
+                #$NewSB = [scriptblock]::Create( ([string]::Concat( 'Measure-Command { (1..',$repeat,').Foreach{ ',$ScriptBlock,' } }' )))
                 $NewSB = [scriptblock]::Create(  "Measure-Command { (1..$repeat).Foreach{ $ScriptBlock } }" )
                 [void]$return.Add( ( Test-Performance -Individual:$false -Name ".Foreach{}_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1 ))
 
+                #$NewSB = [scriptblock]::Create( ([string]::Concat( 'Measure-Command { for($int=0;$int -lt $repeat; $int++){',$ScriptBlock,' } }' )))
                 $NewSB = [scriptblock]::Create(  "Measure-Command { for(`$int=0;`$int -lt `$repeat; `$int++){$ScriptBlock} }" )
                 [void]$return.Add( ( Test-Performance -Individual:$false -Name "For_$Name" -OutputOfRepeat $Repeat -SB $NewSB -MultipleTest:$false -repeat 1 ))
                 return $return
             }
         }
         if ($Individual) {
-
+            $ThisStart = [datetime]::Now
             $Times = (1..$repeat | Foreach-object { Measure-Command $ScriptBlock } ) | Measure-Object -Minimum -Maximum -Average -Property TotalMilliseconds
             $name = "Individ_" + $name
-
+            $ThisEnd = [datetime]::Now - $ThisStart
             $test = [TimeSpan]::FromMilliseconds( $times.Average )
         }elseif ($repeat -eq 1) {
             $test = Measure-Command $ScriptBlock
         }
         else {
-            $NewSB = [scriptblock]::Create( "1..$repeat|foreach-object {$ScriptBlock}")
+            $NewSB = [scriptblock]::Create( "for(`$int=0;`$int -lt $repeat;`$int++){$ScriptBlock}")
             $test = Measure-Command $NewSB
         }
-        if ($isWindows) { $OS = "Win" }
+        if ($isWindows)   { $OS = "Win" }
         elseif ($IsMacOS) { $OS = "Mac" }
         elseif ($Islinux) { $OS = "Linux" }
-        else { $OS = "Win" }
+        else              { $OS = "Win" }
 
         $hash = [Ordered]@{
             Name = $Name
             Time = $test
         }
-        if ($Individual) { $hash.Maximum = $times.Maximum ; $hash.Minimum = $times.Minimum }
         if ($OutputOfRepeat) {
             $hash.TimesExec = $OutputOfRepeat
         }
@@ -142,9 +187,12 @@ Do{}While()       00:00:00.8762461         1 7.1.2          Mac      True
             $hash.TimesExec = $Repeat
         }
 
-        $hash.PSVersionTable = $PSVersionTable.PSVersion.ToString()
+        $hash.PSVersion = $PSVersionTable.PSVersion.ToString()
         $hash.OS = $OS
-        $hash.IsCoreCLR = [bool]$IsCoreCLR
+        #$hash.IsCoreCLR = [bool]$IsCoreCLR
+        $hash.CRL = if ($isCoreCLR){"Core"}elseif($psISE){"ISE"}else{"Console"}
+        if ($Individual){ $hash.TotalTime = $ThisEnd}
+        if ($Individual) { $hash.Maximum = $times.Maximum ; $hash.Minimum = $times.Minimum }
         return ( [PSCustomObject]$hash )
     }
     End{ if ($MultipleTest){ write-host "Total time" ( ([datetime]::now) -$start).tostring() } }
