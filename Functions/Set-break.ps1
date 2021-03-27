@@ -1,14 +1,16 @@
 Function Set-Break {
-    <#
-    .SYNOPSIS
-    This is a function to help the amount of time you have worked
-    #>
+<#
+.SYNOPSIS
+This is a function to help you to keep track how much you work each day. When going for a long break, type set-break :)
+#>
+    [CmdletBinding(SupportsShouldProcess)]
     Param(
         [Parameter(Position=0,ValueFromPipeline,ValueFromPipelineByPropertyName)]
+        # This will turn on and off, normally, just type Set-Break, for tests i'd recommend Set-Break -Turn:$false and similar
         [Switch]$Turn
     )
     Process {
-        if ($PSboundParameters.Turn.IsPresent -ne $null) {
+        if ($null -ne $PSboundParameters.Turn.IsPresent) {
             if (!$Turn) {
                 $switchOn = $false
             }
@@ -33,22 +35,25 @@ Function Set-Break {
                         Remove-PersistentData OnBreak
                         break
                     }
-
-                    $RemoveTicks = ( [DateTime]::Now ) - $global:OnBreak
-                    $newvalue = ( $Global:StartofSession.AddTicks( $RemoveTicks.Ticks ) )
+                    if ($Global:StartofSession.ToShortDateString() -gt $global:OnBreak.ToShortDateString() ) {}
+                    else{
+                        $RemoveTicks = ( [DateTime]::Now ) - $global:OnBreak
+                        $newvalue = ( $Global:StartofSession.AddTicks( $RemoveTicks.Ticks ) )
+                        $splat1 = @{
+                            Name = "StartOfSession"
+                            Value = $newvalue
+                        }
+                        Set-PersistentData @splat1
+                    }
                     Remove-Variable OnBreak -errorAction Ignore -scope Global
-                     $splat1 = @{
-                         Name = "StartOfSession"
-                         Value = $newvalue
-                     }
+                     
                      $splat2 = @{
                          Name = "OnBreak"
                          Remove = $true
                      }
-                     Set-PersistentData @splat1
+                     
                      Set-PersistentData @splat2
                 }
-                
             }
             $true {
                 Set-PersistentData OnBreak ( [DateTime]::now )

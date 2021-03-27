@@ -35,7 +35,7 @@ Function Global:prompt {
         Prompt_SessionOnline
         Prompt_Seperator
         Prompt_week
-        
+
         # New Row
         Prompt_MotD
 
@@ -124,7 +124,6 @@ function Prompt_Provider {
 
 function Prompt_ADM {
     param ([ConsoleColor]$color1 = "Gray", [ConsoleColor]$color2 = "Red")
-    #if ( [bool](([System.Security.Principal.WindowsIdentity]::GetCurrent()).groups -match "S-1-5-32-544") )
     if ( $IsWindows -or [bool]( get-command Get-WindowsEdition -ea ignore )) {
         If ( ( [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator") ) {
             Encapture-Word -word ADM -color1 $color1 -color2 $color2
@@ -149,7 +148,7 @@ Function Prompt_SessionStart {
     Try {
         $ea = $ErrorActionPreference
         $ErrorActionPreference = 'Stop'
-        
+
         if ( !$global:StartOfSession -or !$global:EndOfSession -or $PPstart -gt $global:EndOfSession ) {
             Update-PersistentData -ErrorAction SilentlyContinue
             if ( !$global:StartOfSession -or !$global:EndOfSession -or $PPstart -gt $global:EndOfSession ) {
@@ -185,9 +184,15 @@ function Prompt_SessionOnline {
     #if (!$Global:StartOfSession) {return ""}
     #if ( $outputType -eq "TimeSinceStart" ) {
     if ($global:StartOfSession.GetType().name -ne 'DateTime' ) {
-        $total = ($PPstart - (Get-date $global:StartOfSession ) ) 
+        $total = ($PPstart - (Get-date $global:StartOfSession ) )
     }
-    else { $total = ($PPstart - $global:StartOfSession ) }
+    else {
+        if ($Global:OnBreak) {
+            $total = ($Global:OnBreak - $global:StartOfSession )
+        }else{
+            $total = ($PPstart - $global:StartOfSession )
+        }
+    }
     $global:SessionOnline = "{0:hh}:{0:mm}" -f $total
     Write-Host "S$global:SessionOnline" -NoNewline -ForegroundColor $ForegroundColor
     Set-PersistentData SessionOnline $global:SessionOnline
