@@ -184,7 +184,7 @@ function Prompt_SessionOnline {
     #if (!$Global:StartOfSession) {return ""}
     #if ( $outputType -eq "TimeSinceStart" ) {
     if ($global:StartOfSession.GetType().name -ne 'DateTime' ) {
-        $total = ($PPstart - (Get-date $global:StartOfSession ) )
+        $total = ($PPstart - ([dateTime]$global:StartOfSession ) )
     }
     else {
         if ($Global:OnBreak) {
