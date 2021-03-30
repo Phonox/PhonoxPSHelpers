@@ -29,30 +29,21 @@ This is a function to help you to keep track how much you work each day. When go
         switch ($SwitchOn) {
             $false {
                 if ($global:OnBreak) {
-                    if ($Global:StartofSession.GetType().ToString() -ne "System.DateTime" -or $global:OnBreak.GetType().ToString() -ne "System.DateTime") {
-                        Write-Warning "StartOfSession is incorrect"
-                        Set-PersistentData StartOfSession (get-date 09:15)
+                    if ($Global:StartofSession.ToShortDateString() -gt $global:OnBreak.ToShortDateString() ) {
                         Remove-PersistentData OnBreak
-                        break
                     }
-                    if ($Global:StartofSession.ToShortDateString() -gt $global:OnBreak.ToShortDateString() ) {}
                     else{
                         $RemoveTicks = ( [DateTime]::Now ) - $global:OnBreak
                         $newvalue = ( $Global:StartofSession.AddTicks( $RemoveTicks.Ticks ) )
-                        $splat1 = @{
+                        [PSCustomObject]@{
                             Name = "StartOfSession"
-                            Value = $newvalue
-                        }
-                        Set-PersistentData @splat1
+                            Value = $NewValue
+                        },[PSCustomObject]@{
+                            Name = "OnBreak"
+                            Remove = $true
+                        } |Set-PersistentData
+                        
                     }
-                    Remove-Variable OnBreak -errorAction Ignore -scope Global
-                     
-                     $splat2 = @{
-                         Name = "OnBreak"
-                         Remove = $true
-                     }
-                     
-                     Set-PersistentData @splat2
                 }
             }
             $true {
