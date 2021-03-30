@@ -162,7 +162,7 @@ Function Prompt_SessionStart {
                         Value = $PPstart
                     }, @{
                         Name  = "EndOfSession"
-                        Value = $( (get-date -Hour 4 -date $PPstart.Date.AddDays(1) ) )
+                        Value = ( ([datetime]$PPdstart).Adddays(1).ToString('yyyy-MM-dd 04:00:00 ') + "AM"  )
                     } )
                 foreach ( $splat in $list ) {
                     Set-PersistentData @splat

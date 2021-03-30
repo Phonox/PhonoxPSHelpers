@@ -271,13 +271,13 @@ Function Replace-PersistentData{
             $OldObject = $old[($object.name)]
             if ($OldObject.scope -ne $object.scope -or $OldObject.Type -ne $object.Type -or ($OldObject.value|ConvertTo-Json) -ne ($object.value |ConvertTo-Json) ) {
                 if ($object.Type -eq 'DateTime') {
-                    $object.value = ( [DateTime]($object.Value) ).ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss") # or ToString('stuff')
+                    $object.value = ( [DateTime]($object.Value) ).ToUniversalTime().Ticks # or ToString('stuff')
                 }
                 [void]$NewListCreation.Add($object)
             } # else no change
         }else{ # New object
             if ($object.Type -eq 'DateTime') {
-                $object.value = ( [DateTime]($object.Value) ).ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss") # or ToString('stuff')
+                $object.value = ( [DateTime]($object.Value) ).ToUniversalTime().Ticks # or ToString('stuff')
             }
             [void]$NewListCreation.Add($object)
         }
@@ -287,6 +287,9 @@ Function Replace-PersistentData{
         $hashNames = ConvertTo-OnePointHash $NamesSoFar
         foreach ($item in $old.GetEnumerator() ) {
             if ( ! $hashNames[($item.key)] ) {
+                if ($item.value.Type -eq 'DateTime') {
+                    $item.value.value = ( [DateTime]($item.value.Value) ).ToUniversalTime().Ticks # or ToString('stuff')
+                }
                 [void]$NewListCreation.Add( ($item.value) )
             }
         }
