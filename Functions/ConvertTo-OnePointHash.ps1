@@ -25,9 +25,12 @@ foreach ($key in $first.keys) {
             ValueFromPipelineByPropertyName
         )]
         [array]$Array,
+        [Parameter(ValueFromPipelineByPropertyName)]
         [Alias("ID")] 
         $UniqueID,
+        [Parameter(ValueFromPipelineByPropertyName)]
         [switch]$OverWrite,
+        [Parameter(ValueFromPipelineByPropertyName)]
         [switch]$SkipCheck
     )
     Begin{
@@ -38,7 +41,19 @@ foreach ($key in $first.keys) {
         $TimesOverWritten = 0
     }
     Process{
-        if ($SkipCheck) {
+        if (!$UniqueID){
+            $Array.foreach{
+                $int++
+                $hash[$_] = $_
+                if ($PSBoundParameters.Verbose) {
+                    if ( ( $int % 3000) -eq 0 ) {
+                        $end = [dateTime]::Now
+                        $diff = ($end - $start).ToString()
+                        Write-Host Item $int time past $diff
+                    }
+                }
+            }
+        }elseif ($SkipCheck) {
             $Array.foreach{
                 $int++
                 $hash[$_.$UniqueID] = $_
