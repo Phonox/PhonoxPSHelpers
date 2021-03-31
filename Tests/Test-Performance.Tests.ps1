@@ -27,40 +27,37 @@ Describe 'Testrun of Test-performance' {
             $test.Time.TotalMilliseconds |should -BeGreaterThan 10
         }
     }
-
-    Context 'SmokeTest MultipleTest' { # Sometimes.... this can go as low as 4 whilst it should be 7..
+    
+    Context 'SmokeTest Repeat' {
         It "Normal" {
-            $test = Test-Performance 'woop' { "woopie" ; Start-Sleep -m 1 } -MultipleTest 6>$null
-            $test.count |Should -BeExactly 7
-            $test.Name |Should -Match 'woop'
-            # $test.Name |Should -Match 'While'
-            $test[0].Time.TotalMilliseconds |should -BeGreaterThan 4 # 7
+            $test = Test-Performance 'woop' { "woopie" ; Start-Sleep -m 10 } -Repeat 3
+            $test.count |Should -BeExactly 1
+            $test.Name |Should -BeExactly 'woop'
+            $test.Time.TotalMilliseconds |should -BeGreaterThan 10
         }
-        It 'Pipe' {
+        It 'Should be possible to pipe' {
             $test = [PSCustomObject]@{
                 Name = "Value"
-                E = {"woop";Start-sleep -m 1}
-                MultipleTest = $true
-            } | Test-Performance 6>$null
-            $test.count |Should -BeExactly 7
-            $test.Name |Should -Match 'Value'
-            # $test.Name |Should -Match 'While'
-            $test[0].Time.TotalMilliseconds |should -BeGreaterThan 4 # 7
+                E = {"woop";Start-sleep -m 10}
+                Repeat = 3
+            } |Test-Performance
+            $test.count |Should -BeExactly 1
+            $test.Name |Should -BeExactly 'Value'
+            $test.Time.TotalMilliseconds |should -BeGreaterThan 10
         }
-        It 'Splat' {
+        It 'Should be possible to Splat' {
             $hash = @{
                 Name = "Value"
-                E = {"woop";Start-sleep -m 1}
-                MultipleTest = $true
+                E = {"woop";Start-sleep -m 10}
+                Repeat = 3
             }
-            $test = Test-Performance @hash 6>$null
-            $test.count |Should -BeExactly 7
-            $test.Name |Should -Match 'Value'
-            # $test.Name |Should -Match 'While'
-            $test[0].Time.TotalMilliseconds |should -BeGreaterThan 4 # 7
+            $test = Test-Performance @hash
+            $test.count |Should -BeExactly 1
+            $test.Name |Should -BeExactly 'Value'
+            $test.Time.TotalMilliseconds |should -BeGreaterThan 10
         }
     }
-    
+
     Context 'SmokeTest Single Individual' {
         It "Normal" {
             $test = Test-Performance 'woop' { "woopie" ; start-sleep -m 10 } -Individual
@@ -91,6 +88,166 @@ Describe 'Testrun of Test-performance' {
         }
     }
 
+    Context 'SmokeTest Repeat Individual' {
+        It "Normal" {
+            $test = Test-Performance 'woop' { "woopie" ; start-sleep -m 10 } -Individual -Repeat 3
+            $test.Name |Should -BeExactly 'Ind_woop'
+            $test.count |Should -BeExactly 1
+            $test.Time.TotalMilliseconds |should -BeGreaterThan 10
+        }
+        It 'Pipe' {
+            $test = [PSCustomObject]@{
+                Name = "Value"
+                E = {"woop";Start-sleep -m 10}
+                Individual = $true
+                Repeat = 3
+            } |Test-Performance
+            $test.Name |Should -BeExactly 'Ind_Value'
+            $test.count |Should -BeExactly 1
+            $test.Time.TotalMilliseconds |should -BeGreaterThan 10
+        }
+        It 'Splat' {
+            $hash = @{
+                Name = "Value"
+                E = {"woop";Start-sleep -m 10}
+                Individual = $true
+                Repeat = 3
+            }
+            $test = Test-Performance @hash
+            $test.Name |Should -BeExactly 'Ind_Value'
+            $test.count |Should -BeExactly 1
+            $test.Time.TotalMilliseconds |should -BeGreaterThan 10
+        }
+    }
+    
+    Context 'SmokeTest Single MultipleTest' { # Sometimes.... this can go as low as 4 whilst it should be 7..
+        It "Normal" {
+            $test = Test-Performance 'woop' { "woopie" ; Start-Sleep -m 1 } -MultipleTest 6>$null
+            $test.count |Should -BeExactly 7
+            $test.Name |Should -Match 'woop'
+            $test[0].Time.TotalMilliseconds |should -BeGreaterThan 4 # 7
+        }
+        It 'Pipe' {
+            $test = [PSCustomObject]@{
+                Name = "Value"
+                E = {"woop";Start-sleep -m 1}
+                MultipleTest = $true
+            } | Test-Performance 6>$null
+            $test.count |Should -BeExactly 7
+            $test.Name |Should -Match 'Value'
+            $test[0].Time.TotalMilliseconds |should -BeGreaterThan 4 # 7
+        }
+        It 'Splat' {
+            $hash = @{
+                Name = "Value"
+                E = {"woop";Start-sleep -m 1}
+                MultipleTest = $true
+            }
+            $test = Test-Performance @hash 6>$null
+            $test.count |Should -BeExactly 7
+            $test.Name |Should -Match 'Value'
+            $test[0].Time.TotalMilliseconds |should -BeGreaterThan 4 # 7
+        }
+    }
+    
+    Context 'SmokeTest Repeat MultipleTest' { # Sometimes.... this can go as low as 4 whilst it should be 7..
+        It "Normal" {
+            $test = Test-Performance 'woop' { "woopie" ; Start-Sleep -m 1 } -MultipleTest -Repeat 3 6>$null
+            $test.count |Should -BeExactly 7
+            $test.Name |Should -Match 'woop'
+            $test[0].Time.TotalMilliseconds |should -BeGreaterThan 4 # 7
+        }
+        It 'Pipe' {
+            $test = [PSCustomObject]@{
+                Name = "Value"
+                E = {"woop";Start-sleep -m 1}
+                MultipleTest = $true
+                Repeat = 3
+            } | Test-Performance 6>$null
+            $test.count |Should -BeExactly 7
+            $test.Name |Should -Match 'Value'
+            $test[0].Time.TotalMilliseconds |should -BeGreaterThan 4 # 7
+        }
+        It 'Splat' {
+            $hash = @{
+                Name = "Value"
+                E = {"woop";Start-sleep -m 1}
+                MultipleTest = $true
+                Repeat = 3
+            }
+            $test = Test-Performance @hash 6>$null
+            $test.count |Should -BeExactly 7
+            $test.Name |Should -Match 'Value'
+            $test[0].Time.TotalMilliseconds |should -BeGreaterThan 4 # 7
+        }
+    }
+    
+    Context 'SmokeTest Single individual MultipleTest' { # Sometimes.... this can go as low as 4 whilst it should be 7..
+        It "Normal" {
+            $test = Test-Performance 'woop' { "woopie" ; Start-Sleep -m 1 } -MultipleTest -Individual 6>$null
+            $test.count |Should -BeExactly 7
+            $test.Name |Should -Match 'woop'
+            $test[0].Time.TotalMilliseconds |should -BeGreaterThan 4 # 7
+        }
+        It 'Pipe' {
+            $test = [PSCustomObject]@{
+                Name = "Value"
+                E = {"woop";Start-sleep -m 1}
+                MultipleTest = $true
+                Individual = $true
+            } | Test-Performance 6>$null
+            $test.count |Should -BeExactly 7
+            $test.Name |Should -Match 'Value'
+            $test[0].Time.TotalMilliseconds |should -BeGreaterThan 4 # 7
+        }
+        It 'Splat' {
+            $hash = @{
+                Name = "Value"
+                E = {"woop";Start-sleep -m 1}
+                MultipleTest = $true
+                Individual = $true
+            }
+            $test = Test-Performance @hash 6>$null
+            $test.count |Should -BeExactly 7
+            $test.Name |Should -Match 'Value'
+            $test[0].Time.TotalMilliseconds |should -BeGreaterThan 4 # 7
+        }
+    }
+
+    Context 'SmokeTest Repeat individual MultipleTest' { # Sometimes.... this can go as low as 4 whilst it should be 7..
+        It "Normal" {
+            $test = Test-Performance 'woop' { "woopie" ; Start-Sleep -m 1 } -MultipleTest -Individual -Repeat 3 6>$null
+            $test.count |Should -BeExactly 7
+            $test.Name |Should -Match 'woop'
+            $test[0].Time.TotalMilliseconds |should -BeGreaterThan 4 # 7
+        }
+        It 'Pipe' {
+            $test = [PSCustomObject]@{
+                Name = "Value"
+                E = {"woop";Start-sleep -m 1}
+                MultipleTest = $true
+                Individual = $true
+                Repeat = 3
+            } | Test-Performance 6>$null
+            $test.count |Should -BeExactly 7
+            $test.Name |Should -Match 'Value'
+            $test[0].Time.TotalMilliseconds |should -BeGreaterThan 4 # 7
+        }
+        It 'Splat' {
+            $hash = @{
+                Name = "Value"
+                E = {"woop";Start-sleep -m 1}
+                MultipleTest = $true
+                Individual = $true
+                Repeat = 3
+            }
+            $test = Test-Performance @hash 6>$null
+            $test.count |Should -BeExactly 7
+            $test.Name |Should -Match 'Value'
+            $test[0].Time.TotalMilliseconds |should -BeGreaterThan 4 # 7
+        }
+    }
+    
     Context 'Acceptance' {
         it 'Multiple of individual' {
             $first = ' test '; $last = 'stand'; $repeats = 10 ;

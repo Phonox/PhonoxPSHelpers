@@ -205,7 +205,7 @@ Time             TimesExec PSVersion OS    CLR       Min              Max       
             $NewWatch.Stop()
             $test = $NewWatch.Elapsed
         }else {
-            $NewSB = [scriptblock]::Create( "for(`$ThisUniqueint=0;`$ThisUniqueint -lt $repeat;`$ThisUniqueint++){ (Invoke-Command -ScriptBlock $NewSB) *>$null }")
+            $NewSB = [scriptblock]::Create( "for(`$ThisUniqueint=0;`$ThisUniqueint -lt $repeat;`$ThisUniqueint++){ (Invoke-Command -ScriptBlock {$ScriptBlock} ) *>`$null }")
             $NewWatch = New-Object System.Diagnostics.Stopwatch
             $NewWatch.Start()
             [void] (Invoke-Command -ScriptBlock $NewSB)
@@ -237,8 +237,8 @@ Time             TimesExec PSVersion OS    CLR       Min              Max       
         return ( [PSCustomObject]$hash )
     }
     End{ 
+        $StopWatch.Stop()
         if ($MultipleTest){
-            $StopWatch.Stop()
             Write-Information "Total time $( $StopWatch.Elapsed )" -InformationAction Continue
         }
     }
