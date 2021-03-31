@@ -84,7 +84,7 @@ Time             TimesExec PSVersion OS    CLR       Min              Max       
 00:00:00.0179939 1000      7.1.2     Mac   CoreCLR   00:00:00.0000160 00:00:00.0001708 00:00:00.0000179 Foreach(){}_DynamicString
 00:00:00.0180146 1000      7.1.2     Mac   CoreCLR   00:00:00.0000162 00:00:00.0001660 00:00:00.0000180 DoWhile_DynamicString
 
-$tests|sort-object Time |select -Last 2 
+$tests|sort-object Time |select -Last 2
 
 Time             TimesExec PSVersion OS    CLR       Min              Max              Avg              Name
 ----             --------- --------- --    ---       ---              ---              ---              ----
@@ -128,7 +128,7 @@ Time             TimesExec PSVersion OS    CLR       Min              Max       
     Process {
         if($HasLoopsAndMeasureCommand -and $Individual){
             if ( $ScriptBlock.ToString() -notmatch 'Measure-Command') {Throw 'ScriptBlock REQUIRES a "Measure-Command" to work properly'}
-            $times = Invoke-Command $ScriptBlock | Measure-Object -Minimum -Maximum -Average -Sum -Property TotalMilliseconds
+            $times = Invoke-Command $ScriptBlock | Measure-Object -Minimum -Maximum -Average -Sum -Property Ticks
             if (!$times) {Throw "Incorrect parameter '-HasLoopsAndMeasureCommand'"}
         }elseif ($MultipleTest) {
             $return = [System.Collections.ArrayList]@()
@@ -188,7 +188,7 @@ Time             TimesExec PSVersion OS    CLR       Min              Max       
             $test = Measure-Command $ScriptBlock
         }elseif ($Individual) {
             $ThisStart = [datetime]::Now
-            $Times = (1..$repeat | Foreach-object { Measure-Command $ScriptBlock } ) | Measure-Object -Minimum -Maximum -Average -Sum -Property TotalMilliseconds
+            $Times = (1..$repeat | Foreach-object { Measure-Command $ScriptBlock } ) | Measure-Object -Minimum -Maximum -Average -Sum -Property Ticks
             $name = "Individ_" + $name
             $test = [datetime]::Now - $ThisStart
         }else {
@@ -211,14 +211,14 @@ Time             TimesExec PSVersion OS    CLR       Min              Max       
         $hash.PSVersion = $PSVersionTable.PSVersion.ToString()
         $hash.OS = $OS
         $hash.CLR = if ($isCoreCLR){"CoreCLR"}elseif($psISE){"ISE"}else{$PSVersionTable.PSEdition.ToString()}
-        if ($Individual) { 
-            $hash.Max = [TimeSpan]::FromMilliseconds( $times.Maximum )
-            $hash.Min = [TimeSpan]::FromMilliseconds( $times.Minimum )
-            $hash.Avg = [TimeSpan]::FromMilliseconds( $Times.Average )
-            $hash.Time= [TimeSpan]::FromMilliseconds( $Times.Sum )
+        if ($Individual) {
+            $hash.Max = [TimeSpan]::FromTicks( $times.Maximum )
+            $hash.Min = [TimeSpan]::FromTicks( $times.Minimum )
+            $hash.Avg = [TimeSpan]::FromTicks( $Times.Average )
+            $hash.Time= [TimeSpan]::FromTicks( $Times.Sum )
         }
         return ( [PSCustomObject]$hash )
     }
-    End{ if ($MultipleTest){ write-host "Total time" ( ([datetime]::now) -$start).tostring() } }
+    End{ if ($MultipleTest){ Write-Information "Total time $( ([datetime]::now) - $start )" -InformationAction Continue } }
 }
 Export-ModuleMember -Function Test-Performance
