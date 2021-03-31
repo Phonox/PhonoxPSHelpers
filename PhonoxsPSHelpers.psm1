@@ -1,5 +1,6 @@
 $pathPublic = Join-Path $PSScriptRoot  "Functions"
 $pathSnippet = Join-Path $PSScriptRoot "ISESnippets"
+# Bad practice of importing modules and stuff.
 Get-ChildItem $pathPublic/*psm1, $pathPublic/*ps1 |
 Where-Object { $_.Name -notmatch "\.test.?\.ps1$|\.test.?\.psm1$" } | Sort-Object -Descending |
 ForEach-Object -Begin { $total = 0 } `
@@ -27,6 +28,10 @@ if ([bool]$host.PrivateData.window ) {
     (Get-command -Module PhonoxsPSHelpers -CommandType all | Measure-Object).count
   }
 }
+foreach($file in Get-ChildItem (join-Path $PSScriptRoot "ps1xml")){
+  Update-FormatData -PrependPath $file.FullName
+}
+#Update-FormatData -PrependPath (Join-Path (Join-Path $PSScriptRoot "ps1xml") "*")
 
 if (get-module PhonoxsPSHelpers) {
   Update-PersistentData
