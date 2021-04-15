@@ -23,7 +23,7 @@ Function Global:prompt {
     }
     Process {
         Prompt_SetLastRunCommand
-        $PPstart = [DateTime]::Now # används nu på flera ställen i scriptet där get-date används
+        $Script:PPStart = [DateTime]::Now # används nu på flera ställen i scriptet där get-date används
         $Script:NewDay = $false
         Prompt_SessionStart
 
@@ -37,7 +37,7 @@ Function Global:prompt {
         Prompt_week
 
         # New Row
-        Prompt_MotD
+        # Prompt_MotD
 
         # New Row
         Prompt_NewLine
@@ -53,7 +53,7 @@ Function Global:prompt {
         # Prompt_Versioning5
         Prompt_NestedLevel (Prompt_BoolLastCommand Cyan Red)
         #$PPend = get-date # EXTRA
-        #([int]($PPend - $PPstart).TotalMilliseconds).ToString() # EXTRA
+        #([int]($PPend - $Script:PPStart).TotalMilliseconds).ToString() # EXTRA
     }
     End {
         return " " # Required to remove last part ' PS>'
@@ -65,16 +65,15 @@ function Prompt_NewDay {
         $day,
         $keep = $WorkDaysToKeep
     )
-    if ($Script:NewDay) {
-        if (!$keep) { Set-PersistentData WorkDaysToKeep 5 }
-        if (!$WorkDays) {
-            Set-PersistentData WorkDays $day
-        }
-        else {
-            if ($WorkDays.count -gt $keep) {
-                Set-PersistentData -Subtract WorkDays $WorkDays[0]
-            }
-            Set-PersistentData -Add WorkDays $day
+    if (!$keep) { Set-PersistentData WorkDaysToKeep 5 }
+    if (!$WorkDays) {
+        Set-PersistentData WorkDays $day
+    }
+    else {
+        if ($WorkDays.count -ge $keep) {
+            Set-PersistentData WorkDays ( $Workdays[1..$keep] + $day )
+        }else{
+            Set-PersistentData -Special Add WorkDays $day
         }
     }
 }
@@ -149,30 +148,29 @@ Function Prompt_SessionStart {
         $ea = $ErrorActionPreference
         $ErrorActionPreference = 'Stop'
 
-        if ( !$global:StartOfSession -or !$global:EndOfSession -or $PPstart -gt $global:EndOfSession ) {
+        if ( !$global:StartOfSession -or !$global:EndOfSession -or $Script:PPStart -gt $global:EndOfSession ) {
             Update-PersistentData -ErrorAction SilentlyContinue
-            if ( !$global:StartOfSession -or !$global:EndOfSession -or $PPstart -gt $global:EndOfSession ) {
+            if ( !$global:StartOfSession -or !$global:EndOfSession -or $Script:PPStart -gt $global:EndOfSession ) {
                 if ( $global:SessionOnline -and $global:StartOfSession ) {
                     $Script:LastDay = "{0:yyyy}-{0:MM}-{0:dd} {0:dddd} {1}" -f $global:StartOfSession, $global:SessionOnline
                 }
                 else { } # Requires sessions to be live 24/7 :(
                 $Script:NewDay = $true
-                $list = @( @{
+                $null = [PSCustomObject]@{
                         Name  = "StartOfSession"
-                        Value = $PPstart
-                    }, @{
+                        Value = $Script:PPStart
+                    }, [PSCustomObject]@{
                         Name  = "EndOfSession"
-                        Value = ( ([datetime]$PPdstart).Adddays(1).ToString('yyyy-MM-dd 04:00:00 ') + "AM"  )
-                    } )
-                foreach ( $splat in $list ) {
-                    Set-PersistentData @splat
-                }
-                # Set-PersistentData StartOfSession $PPstart
-                # Set-PersistentData EndOfSession ( get-date -Hour 4 -date $PPstart.Date.AddDays(1) )
+                        Value = ( [datetime]($Script:PPStart.AddDays(1).ToString('yyyy-MM-dd 04:00:00 ') + "AM")  )
+                    } |Set-PersistentData
+                prompt_newday $Script:LastDay
+                Prompt_MotD #$LastDay
+                # Set-PersistentData StartOfSession $Script:PPStart
+                # Set-PersistentData EndOfSession ( get-date -Hour 4 -date $Script:PPStart.Date.AddDays(1) )
             }
         }
     }
-    Catch {}
+    Catch { Write-Warning $_ ; Write-Error $_}
     Finally { $ErrorActionPreference = $ea }
 }
 
@@ -184,13 +182,13 @@ function Prompt_SessionOnline {
     #if (!$Global:StartOfSession) {return ""}
     #if ( $outputType -eq "TimeSinceStart" ) {
     if ($global:StartOfSession.GetType().name -ne 'DateTime' ) {
-        $total = ($PPstart - ([dateTime]$global:StartOfSession ) )
+        $total = ($Script:PPStart - ([dateTime]$global:StartOfSession ) )
     }
     else {
         if ($Global:OnBreak) {
             $total = ($Global:OnBreak - $global:StartOfSession )
         }else{
-            $total = ($PPstart - $global:StartOfSession )
+            $total = ($Script:PPStart - $global:StartOfSession )
         }
     }
     $global:SessionOnline = "{0:hh}:{0:mm}" -f $total
@@ -221,7 +219,7 @@ function Prompt_Versioning {
 
 Function Prompt_time {
     Param([ConsoleColor]$Color = "Cyan")
-    Write-Host -NoNewline $PPstart.ToShortTimeString() -ForegroundColor $Color
+    Write-Host -NoNewline $Script:PPStart.ToShortTimeString() -ForegroundColor $Color
     $Script:addSeperator = $true
 }
 
@@ -230,11 +228,8 @@ Function Prompt_week {
     Write-Host "W$week" -NoNewline
 }
 Function Prompt_MotD {
-    if ($Script:NewDay) {
-        Prompt_NewLine
-        Prompt_NewDay $LastDay
-        if (    $global:StartOfSession.Hour -le 11) { Write-Host "Good morning" $env:USERNAME }
-        elseif ($global:StartOfSession.Hour -le 16) { Write-Host "Good day" $env:USERNAME }
-        else { Write-Host "Good evening" $env:USERNAME }
-    }
+    Prompt_NewLine
+    if (    $global:StartOfSession.Hour -le 11) { Write-Host "Good morning" $env:USERNAME }
+    elseif ($global:StartOfSession.Hour -le 16) { Write-Host "Good day" $env:USERNAME }
+    else { Write-Host "Good evening" $env:USERNAME }
 }
