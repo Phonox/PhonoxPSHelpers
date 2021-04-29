@@ -3,21 +3,31 @@ Function Test-Performance {
     .SYNOPSIS
     When you need to test performance for difference things and need to sort them better with name and time
     .DESCRIPTION
-    Next update will use
-    $StopWatch = new-object system.diagnostics.stopwatch
-    $StopWatch.Start()
-    $StopWatch.Stop()
+    Difference between measure-command and this, is that you will have more data represented to make it easier to analyse difference of psversions or other stuff
     .EXAMPLE
-$tests = @()
-$tests += Test-Performance NullNewObject {$null = New-Object System.Collections.ArrayList} -repeat 10000
-$tests += Test-Performance VoidNewObject {[void] (New-Object System.Collections.ArrayList)} -repeat 10000
-$tests += Test-Performance NewObjectToNull {New-Object System.Collections.ArrayList >$null} -repeat 10000
-$tests += Test-Performance NewObjectOutNull {New-Object System.Collections.ArrayList |out-null} -repeat 10000
-$tests += Test-Performance NullQuickInstance {$null = [System.Collections.ArrayList]@() }  -repeat 10000
-$tests += Test-Performance VoidQuickInstance {[void][System.Collections.ArrayList]@() }  -repeat 10000
-$tests += Test-Performance QuickInstanceToNull {[System.Collections.ArrayList]@()>$null }  -repeat 10000
-$tests += Test-Performance QuickInstanceOutNull {[System.Collections.ArrayList]@()|out-null }  -repeat 10000
-tests|sort-object Time
+    using namespace system.collections
+$tests = @( # Difference of nullify output and Instanting arraylist
+    @{Name='NullArrayList'; ScriptBlock= { $null = [ArrayList]::New() } } ,
+    @{Name='VoidArrayList'; ScriptBlock= { [void] [ArrayList]::New() } } ,
+    @{Name='ArrayListNull'; ScriptBlock= { [ArrayList]::New() >$null } } ,
+    @{Name='ArrayListOutNull'; ScriptBlock= { [ArrayList]::New() |Out-Null } } ,
+
+    @{Name='NullNewObject';    ScriptBlock= { $null = New-Object System.Collections.ArrayList } } ,
+    @{Name='VoidNewObject';    ScriptBlock= { [void] (New-Object System.Collections.ArrayList) } } ,
+    @{Name='NewObjectToNull';  ScriptBlock= { New-Object System.Collections.ArrayList >$null }  } ,
+    @{Name='NewObjectOutNull'; ScriptBlock= { New-Object System.Collections.ArrayList |out-null } } ,
+    
+    @{Name='NullQuickInstance';    ScriptBlock= { $null = [System.Collections.ArrayList]@() }  } ,
+    @{Name='VoidQuickInstance';    ScriptBlock= { [void][System.Collections.ArrayList]@() }  } ,
+    @{Name='QuickInstanceToNull';  ScriptBlock= { [System.Collections.ArrayList]@() >$null } } ,
+    @{Name='QuickInstanceOutNull'; ScriptBlock= { [System.Collections.ArrayList]@()|out-null }  } ,
+
+    @{Name='NullQuickInstanceNEW';     ScriptBlock= { $null = [System.Collections.ArrayList]::new() } } ,
+    @{Name='VoidQuickInstanceNEW';     ScriptBlock= { [void][System.Collections.ArrayList]::new() } } ,
+    @{Name='QuickInstanceNEWToNull';   ScriptBlock= { [System.Collections.ArrayList]::new() >$null }  } ,
+    @{Name='QuickInstanceNEWOutNull' ; ScriptBlock= { [System.Collections.ArrayList]::new()|out-null } }
+).Foreach{ Test-Performance -repeat 10000 @_ } #|Test-Performance -repeat 10000
+$tests|sort-object Time
 
 Time             TimesExec PSVersion OS    CLR       Name
 ----             --------- --------- --    ---       ----
@@ -92,9 +102,23 @@ Time             TimesExec PSVersion OS    CLR       Min              Max       
 00:00:00.2277168 1000      7.1.2     Mac   CoreCLR   00:00:00.0000266 00:00:00.1231455 00:00:00.0002277 While_PS-Join
 
 ....and much MUCH MORE! (total of 49 rows)
+.EXAMPLE
+$repeats = 1000 # HashTables
+# https://ridicurious.com/2019/10/04/11-ways-to-create-hashtable-in-powershell/
+$tests = (
+    @{Name='QuickInstance';       ScriptBlock={ $hash = @{} } },
+    @{Name='NewObjectHash';       ScriptBlock={ $hash = New-Object Hashtable @{} } },
+    @{Name='hashTableNEW';       ScriptBlock={ $hash = [hashtable]::new() } },
+    @{Name='DictStrStr';       ScriptBlock={ $Dictionary = New-Object 'System.Collections.Generic.Dictionary[String,String]' } },
+    @{Name='DictStrInt';       ScriptBlock={ $Dictionary = [System.Collections.Generic.Dictionary[string,int]]::new() } },
+    @{Name='NewObject';       ScriptBlock={ $hash = New-Object System.Collections.Hashtable } },
+    @{Name='NEWHash';       ScriptBlock={ $Hashtable = [System.Collections.Specialized.OrderedDictionary]::new() } },
+    @{Name='HereHash';       ScriptBlock={ $HereHash = @"
+name='test'
+"@|ConvertFrom-StringData } }
+).Foreach{[pscustomobject]$_} |Test-Performance -MultipleTest -Repeat $repeats |Sort-Object Time
     #>
     [CmdletBinding()]
-    #[OutputType([TestResultsIndividual],[TestResultsNormal])]
     [OutputType([PSCustomObject])]
     Param(
         [ValidateNotNullOrEmpty()]
@@ -121,94 +145,139 @@ Time             TimesExec PSVersion OS    CLR       Min              Max       
         [switch]$HasLoopsAndMeasureCommand
     )
     Begin{
-        $Start = [datetime]::now
-        $StopWatch = New-Object system.diagnostics.stopwatch
-        $StopWatch.Start()
+        $StopWatch = [System.Diagnostics.Stopwatch]::StartNew()
         if (!(Get-FormatData -TypeName TestResultsNormal)) {
             $FormatXml = "$PSScriptRoot\..\ps1xml\TestResults.ps1xml"
             Update-FormatData -PrependPath $FormatXml
         }
     }
     Process {
+        [system.gc]::Collect()
+        # $WorkingSetStartOfProcess = (Get-Process -id $PID ).WorkingSet64
         if($HasLoopsAndMeasureCommand -and $Individual){
             if ( $ScriptBlock.ToString() -notmatch 'Measure-Command|StopWatch') {Throw 'ScriptBlock REQUIRES a "Measure-Command" to work properly'}
-            $times = Invoke-Command $ScriptBlock | Measure-Object -Minimum -Maximum -Average -Sum -Property Ticks
+            $times = $ScriptBlock.Invoke() | Measure-Object -Minimum -Maximum -Average -Sum -Property Ticks
             if (!$times) {Throw "Incorrect parameter '-HasLoopsAndMeasureCommand'"}
         }elseif ($MultipleTest) {
             $return = [System.Collections.ArrayList]@()
             if ($Individual) {
                 $return = [PSCustomObject]@{
-                    ScriptBlock = [scriptblock]::Create(  "1..$repeat |Foreach-object { Measure-Command { `$InsideWatch = New-Object System.Diagnostics.Stopwatch ; `$InsideWatch.Start() ; (Invoke-Command -ScriptBlock {$ScriptBlock} ) *>`$null ; `$InsideWatch.Stop() ; `$InsideWatch.Elapsed } }" )
+                    ScriptBlock = [scriptblock]::Create(  "1..$repeat |Foreach-object { Measure-Command { `$InsideWatch = New-Object System.Diagnostics.Stopwatch ; `$InsideWatch.Start() ; (& {$ScriptBlock } ) *>`$null ; `$InsideWatch.Stop() ; `$InsideWatch.Elapsed } }" )
                     Name = "|Foreach_$Name"
                 },[PSCustomObject]@{
-                    ScriptBlock = [scriptblock]::Create(  "Foreach( `$i in 1..$repeat ){ `$InsideWatch = New-Object System.Diagnostics.Stopwatch ; `$InsideWatch.Start() ; (Invoke-Command -ScriptBlock {$ScriptBlock} ) *>`$null ; `$InsideWatch.Stop() ; `$InsideWatch.Elapsed }" )
+                    ScriptBlock = [scriptblock]::Create(  "Foreach( `$i in 1..$repeat ){ `$InsideWatch = New-Object System.Diagnostics.Stopwatch ; `$InsideWatch.Start() ; (& {$ScriptBlock} ) *>`$null ; `$InsideWatch.Stop() ; `$InsideWatch.Elapsed }" )
                     Name = "Foreach(){}_$Name"
                 },[PSCustomObject]@{
-                    ScriptBlock = [scriptblock]::Create(  "(1..$repeat).Foreach{ `$InsideWatch = New-Object System.Diagnostics.Stopwatch ; `$InsideWatch.Start() ; (Invoke-Command -ScriptBlock {$ScriptBlock} ) *>`$null ; `$InsideWatch.Stop() ; `$InsideWatch.Elapsed }" )
+                    ScriptBlock = [scriptblock]::Create(  "(1..$repeat).Foreach{ `$InsideWatch = New-Object System.Diagnostics.Stopwatch ; `$InsideWatch.Start() ; (& {$ScriptBlock} ) *>`$null ; `$InsideWatch.Stop() ; `$InsideWatch.Elapsed }" )
                     Name = ".Foreach{}_$Name"
                 },[PSCustomObject]@{
-                    ScriptBlock = [scriptblock]::Create(  "for(`$ThisUniqueint=0;`$ThisUniqueint -lt $repeat; `$ThisUniqueint++){ `$InsideWatch = New-Object System.Diagnostics.Stopwatch ; `$InsideWatch.Start() ; (Invoke-Command -ScriptBlock {$ScriptBlock} ) *>`$null ; `$InsideWatch.Stop() ; `$InsideWatch.Elapsed }" )
+                    ScriptBlock = [scriptblock]::Create(  "for(`$ThisUniqueint=0;`$ThisUniqueint -lt $repeat; `$ThisUniqueint++){ `$InsideWatch = New-Object System.Diagnostics.Stopwatch ; `$InsideWatch.Start() ; (& {$ScriptBlock} ) *>`$null ; `$InsideWatch.Stop() ; `$InsideWatch.Elapsed }" )
                     Name = "For_$Name"
                 },[PSCustomObject]@{
-                    ScriptBlock = [scriptblock]::Create( ( "`$ThisUniqueint=0;while(`$ThisUniqueint -lt $repeat){  `$InsideWatch = New-Object System.Diagnostics.Stopwatch ; `$InsideWatch.Start() ; (Invoke-Command -ScriptBlock {$ScriptBlock} ) *>`$null ; `$InsideWatch.Stop() ; `$InsideWatch.Elapsed;`$ThisUniqueint++ }" ) )
+                    ScriptBlock = [scriptblock]::Create( ( "`$ThisUniqueint=0;while(`$ThisUniqueint -lt $repeat){  `$InsideWatch = New-Object System.Diagnostics.Stopwatch ; `$InsideWatch.Start() ; (& {$ScriptBlock} ) *>`$null ; `$InsideWatch.Stop() ; `$InsideWatch.Elapsed;`$ThisUniqueint++ }" ) )
                     Name = "While_$Name"
                 },[PSCustomObject]@{
-                    ScriptBlock = [scriptblock]::Create( ( "`$ThisUniqueint=0;Do{ `$InsideWatch = New-Object System.Diagnostics.Stopwatch ; `$InsideWatch.Start() ; (Invoke-Command -ScriptBlock {$ScriptBlock} ) *>`$null ; `$InsideWatch.Stop() ; `$InsideWatch.Elapsed ;`$ThisUniqueint++ }while(`$ThisUniqueint -lt $repeat )" ) )
+                    ScriptBlock = [scriptblock]::Create( ( "`$ThisUniqueint=0;Do{ `$InsideWatch = New-Object System.Diagnostics.Stopwatch ; `$InsideWatch.Start() ; (& {$ScriptBlock} ) *>`$null ; `$InsideWatch.Stop() ; `$InsideWatch.Elapsed ;`$ThisUniqueint++ }while(`$ThisUniqueint -lt $repeat )" ) )
                     Name = "DoWhile_$Name"
                 },[PSCustomObject]@{
-                    ScriptBlock = [scriptblock]::Create( ( "`$ThisUniqueint=0;Do{ `$InsideWatch = New-Object System.Diagnostics.Stopwatch ; `$InsideWatch.Start() ; (Invoke-Command -ScriptBlock {$ScriptBlock} ) *>`$null ; `$InsideWatch.Stop() ; `$InsideWatch.Elapsed ;`$ThisUniqueint++ }until(`$ThisUniqueint -ge $repeat )") )
+                    ScriptBlock = [scriptblock]::Create( ( "`$ThisUniqueint=0;Do{ `$InsideWatch = New-Object System.Diagnostics.Stopwatch ; `$InsideWatch.Start() ; (& {$ScriptBlock} ) *>`$null ; `$InsideWatch.Stop() ; `$InsideWatch.Elapsed ;`$ThisUniqueint++ }until(`$ThisUniqueint -ge $repeat )") )
                     Name = "DoUntil_$Name"
                 } |Test-Performance -Individual -Repeat $Repeat -HasLoopsAndMeasureCommand
+
+                # $return = (@{
+                #     ScriptBlock = [scriptblock]::Create(  "1..$repeat |Foreach-object { Measure-Command { `$InsideWatch = New-Object System.Diagnostics.Stopwatch ; `$InsideWatch.Start() ; (& {$ScriptBlock} ) *>`$null ; `$InsideWatch.Stop() ; `$InsideWatch.Elapsed } }" )
+                #     Name = "|Foreach_$Name"
+                # },@{
+                #     ScriptBlock = [scriptblock]::Create(  "Foreach( `$i in 1..$repeat ){ `$InsideWatch = New-Object System.Diagnostics.Stopwatch ; `$InsideWatch.Start() ; (& {$ScriptBlock} ) *>`$null ; `$InsideWatch.Stop() ; `$InsideWatch.Elapsed }" )
+                #     Name = "Foreach(){}_$Name"
+                # },@{
+                #     ScriptBlock = [scriptblock]::Create(  "(1..$repeat).Foreach{ `$InsideWatch = New-Object System.Diagnostics.Stopwatch ; `$InsideWatch.Start() ; (& {$ScriptBlock} ) *>`$null ; `$InsideWatch.Stop() ; `$InsideWatch.Elapsed }" )
+                #     Name = ".Foreach{}_$Name"
+                # },@{
+                #     ScriptBlock = [scriptblock]::Create(  "for(`$ThisUniqueint=0;`$ThisUniqueint -lt $repeat; `$ThisUniqueint++){ `$InsideWatch = New-Object System.Diagnostics.Stopwatch ; `$InsideWatch.Start() ; (& {$ScriptBlock} ) *>`$null ; `$InsideWatch.Stop() ; `$InsideWatch.Elapsed }" )
+                #     Name = "For_$Name"
+                # },@{
+                #     ScriptBlock = [scriptblock]::Create( ( "`$ThisUniqueint=0;while(`$ThisUniqueint -lt $repeat){  `$InsideWatch = New-Object System.Diagnostics.Stopwatch ; `$InsideWatch.Start() ; (& {$ScriptBlock} ) *>`$null ; `$InsideWatch.Stop() ; `$InsideWatch.Elapsed;`$ThisUniqueint++ }" ) )
+                #     Name = "While_$Name"
+                # },@{
+                #     ScriptBlock = [scriptblock]::Create( ( "`$ThisUniqueint=0;Do{ `$InsideWatch = New-Object System.Diagnostics.Stopwatch ; `$InsideWatch.Start() ; (& {$ScriptBlock} ) *>`$null ; `$InsideWatch.Stop() ; `$InsideWatch.Elapsed ;`$ThisUniqueint++ }while(`$ThisUniqueint -lt $repeat )" ) )
+                #     Name = "DoWhile_$Name"
+                # },@{
+                #     ScriptBlock = [scriptblock]::Create( ( "`$ThisUniqueint=0;Do{ `$InsideWatch = New-Object System.Diagnostics.Stopwatch ; `$InsideWatch.Start() ; (& {$ScriptBlock} ) *>`$null ; `$InsideWatch.Stop() ; `$InsideWatch.Elapsed ;`$ThisUniqueint++ }until(`$ThisUniqueint -ge $repeat )") )
+                #     Name = "DoUntil_$Name"
+                # } ).Foreach{ Test-Performance @_ -Individual -Repeat $Repeat -HasLoopsAndMeasureCommand } |Sort-Object Time 
                 return $return
             }else {
-                $return = [PSCustomObject]@{
-                    ScriptBlock = [scriptblock]::Create(  "1..$repeat |Foreach-object { $ScriptBlock } " )
+                # $return = [PSCustomObject]@{
+                #     ScriptBlock = [scriptblock]::Create(  "1..$repeat |Foreach-object { $ScriptBlock } " )
+                #     Name = "|Foreach_$Name"
+                # },[PSCustomObject]@{
+                #     ScriptBlock = [scriptblock]::Create(  "Foreach( `$i in 1..$repeat ){ $ScriptBlock } " )
+                #     Name = "Foreach(){}_$Name"
+                # },[PSCustomObject]@{
+                #     ScriptBlock = [scriptblock]::Create(  " (1..$repeat).Foreach{ $ScriptBlock }" )
+                #     Name = ".Foreach{}_$Name"
+                # },[PSCustomObject]@{
+                #     ScriptBlock = [scriptblock]::Create(  "for(`$ThisUniqueint=0;`$ThisUniqueint -le $repeat; `$ThisUniqueint++){$ScriptBlock ; `$ThisUniqueint++} " )
+                #     Name = "For_$Name"
+                # },[PSCustomObject]@{
+                #     ScriptBlock = [scriptblock]::Create( "`$ThisUniqueint=0;while(`$ThisUniqueint -lt $repeat ){ $ScriptBlock ; `$ThisUniqueint++ }" )
+                #     Name = "While_$Name"
+                # },[PSCustomObject]@{
+                #     ScriptBlock = [scriptblock]::Create( ( "`$ThisUniqueint=0;Do{ $scriptblock ;`$ThisUniqueint++ }while(`$ThisUniqueint -lt $repeat )") )
+                #     Name = "DoWhile_$Name"
+                # },[PSCustomObject]@{
+                #     ScriptBlock = [scriptblock]::Create( ( "`$ThisUniqueint=0;Do{ $scriptblock ;`$ThisUniqueint++ }until(`$ThisUniqueint -ge $repeat )") )
+                #     Name = "DoUntil_$Name"
+                # } |Test-Performance -Individual:$false -Repeat 1 |ForEach-Object {
+                #     $_ |Add-Member -NotePropertyName TimesExec -NotePropertyValue $repeat -force -PassThru
+                # }
+                $return = ( ( @{
+                    ScriptBlock = [scriptblock]::Create( "1..$repeat |Foreach-object { $ScriptBlock } " )
                     Name = "|Foreach_$Name"
-                },[PSCustomObject]@{
-                    ScriptBlock = [scriptblock]::Create(  "Foreach( `$i in 1..$repeat ){ $ScriptBlock } " )
+                },@{
+                    ScriptBlock = [scriptblock]::Create( "Foreach( `$i in 1..$repeat ){ $ScriptBlock } " )
                     Name = "Foreach(){}_$Name"
-                },[PSCustomObject]@{
-                    ScriptBlock = [scriptblock]::Create(  " (1..$repeat).Foreach{ $ScriptBlock }" )
+                },@{
+                    ScriptBlock = [scriptblock]::Create( " (1..$repeat).Foreach{ $ScriptBlock }" )
                     Name = ".Foreach{}_$Name"
-                },[PSCustomObject]@{
-                    ScriptBlock = [scriptblock]::Create(  "for(`$ThisUniqueint=0;`$ThisUniqueint -le $repeat; `$ThisUniqueint++){$ScriptBlock ; `$ThisUniqueint++} " )
+                },@{
+                    ScriptBlock = [scriptblock]::Create( "for(`$ThisUniqueint=0;`$ThisUniqueint -lt $repeat ; `$ThisUniqueint++){ $ScriptBlock } " )
                     Name = "For_$Name"
-                },[PSCustomObject]@{
+                },@{
                     ScriptBlock = [scriptblock]::Create( "`$ThisUniqueint=0;while(`$ThisUniqueint -lt $repeat ){ $ScriptBlock ; `$ThisUniqueint++ }" )
                     Name = "While_$Name"
-                },[PSCustomObject]@{
-                    ScriptBlock = [scriptblock]::Create( ( "`$ThisUniqueint=0;Do{ $scriptblock ;`$ThisUniqueint++ }while(`$ThisUniqueint -lt $repeat )") )
+                },@{
+                    ScriptBlock = [scriptblock]::Create( "`$ThisUniqueint=0;Do{ $Scriptblock ;`$ThisUniqueint++ }while(`$ThisUniqueint -lt $repeat )" )
                     Name = "DoWhile_$Name"
-                },[PSCustomObject]@{
-                    ScriptBlock = [scriptblock]::Create( ( "`$ThisUniqueint=0;Do{ $scriptblock ;`$ThisUniqueint++ }until(`$ThisUniqueint -ge $repeat )") )
+                },@{
+                    ScriptBlock = [scriptblock]::Create( "`$ThisUniqueint=0;Do{ $Scriptblock ;`$ThisUniqueint++ }until(`$ThisUniqueint -ge $repeat )" )
                     Name = "DoUntil_$Name"
-                } |Test-Performance -Individual:$false -Repeat 1 |ForEach-Object {$_.TimesExec = $repeat ; $_}
+                } ).ForEach{ Test-Performance @_ -Individual:$false -Repeat 1} ).ForEach{ $_.TimesExec = $repeat ; $_ } |Sort-Object Time
                 return $return
             }
         }elseif ($Individual) {
-            $FullTest = New-Object System.Diagnostics.Stopwatch
-            $FullTest.Start()
-            $Times = (1..$repeat | Foreach-object {
-                $NewWatch = New-Object System.Diagnostics.Stopwatch
-                $NewWatch.Start()
-                (Invoke-Command -ScriptBlock $ScriptBlock) *>$null
+            $FullTest = [System.Diagnostics.Stopwatch]::StartNew()
+            $Times = (1..$repeat).ForEach{
+                $NewWatch = [System.Diagnostics.Stopwatch]::StartNew()
+                $ScriptBlock.Invoke()
                 $NewWatch.Stop()
                 $NewWatch.Elapsed
-            } ) | Measure-Object -Minimum -Maximum -Average -Sum -Property Ticks
+            } | Measure-Object -Minimum -Maximum -Average -Sum -Property Ticks
             $NewWatch.Stop()
             $name = "Ind_" + $name
             $test = $FullTest.Elapsed
         }elseif ($repeat -eq 1) {
-            $NewWatch = New-Object System.Diagnostics.Stopwatch
-            $NewWatch.Start()
-            (Invoke-Command -ScriptBlock $ScriptBlock) *>$null
+            $NewWatch = [System.Diagnostics.Stopwatch]::StartNew()
+            $ScriptBlock.Invoke()
             $NewWatch.Stop()
             $test = $NewWatch.Elapsed
         }else {
-            $NewSB = [scriptblock]::Create( "for(`$ThisUniqueint=0;`$ThisUniqueint -lt $repeat;`$ThisUniqueint++){ (Invoke-Command -ScriptBlock {$ScriptBlock} ) *>`$null }")
-            $NewWatch = New-Object System.Diagnostics.Stopwatch
-            $NewWatch.Start()
-            [void] (Invoke-Command -ScriptBlock $NewSB)
+            #$NewSB = [scriptblock]::Create( "for(`$ThisUniqueint=0;`$ThisUniqueint -lt $repeat;`$ThisUniqueint++){ (& {$ScriptBlock} ) *>`$null }")
+            $NewWatch = [System.Diagnostics.Stopwatch]::StartNew()
+            #[void] (& $NewSB)
+            #for($ThisUniqueint=0;$ThisUniqueint -lt $repeat;$ThisUniqueint++){ (& $ScriptBlock ) *>$null }
+            foreach ($item in 1..$repeat) { $ScriptBlock.Invoke() }
             $NewWatch.Stop()
             $test = $NewWatch.Elapsed
         }
@@ -216,30 +285,48 @@ Time             TimesExec PSVersion OS    CLR       Min              Max       
         elseif ($IsMacOS) { $OS = "Mac" }
         elseif ($Islinux) { $OS = "Linux" }
         else              { $OS = "Win" }
-
-        if($Individual){$TypeName = "TestResultsIndividual"}else{$TypeName = "TestResultsNormal"}
+        
+        $FullName = $Name
+        if ( $Name -match '(?<ind>Ind)?_?(?<loop>\|Foreach|Foreach\(\)\{\}|\.Foreach\{\}|for|while|DoWhile|DoUntil)_(?<orgName>.*)' ) {
+            $loop = $Matches.loop
+            $Name = $matches.orgName
+            if ($Individual) {
+                $FullName = "Ind_$FullName"
+                $TypeName = "TestResultsIndividualMultiTest"
+            }else {
+                $TypeName = 'TestResultsMultipleTest'
+            }
+        }elseif($Individual -and -not $MultipleTest){
+            $TypeName = "TestResultsIndividual"
+        }else{$TypeName = "TestResultsNormal"}
+        
         $hash = [Ordered]@{
             PSTypeName = $TypeName
+            FullName = $FullName
             Name = $Name
             Time = $test
         }
         $hash.TimesExec = $Repeat
-
+        if ($loop) {$hash.Loop = $loop}
         $hash.PSVersion = $PSVersionTable.PSVersion.ToString()
         $hash.OS = $OS
-        $hash.CLR = if ($isCoreCLR){"CoreCLR"}elseif($psISE){"ISE"}else{$PSVersionTable.PSEdition.ToString()}
+        $hash.CLR = if ($isCoreCLR){"CoreCLR"}elseif($psISE){"ISE"}else{$PSVersionTable.PSEdition.ToString() }
         if ($Individual) {
             $hash.Max = [TimeSpan]::FromTicks( $times.Maximum )
             $hash.Min = [TimeSpan]::FromTicks( $times.Minimum )
             $hash.Avg = [TimeSpan]::FromTicks( $Times.Average )
             $hash.Time= [TimeSpan]::FromTicks( $Times.Sum )
         }
+        
+        # $Hash.WorkSet = ( ( Get-Process -id $PID ).WorkingSet64 - $WorkingSetStartOfProcess )
         return ( [PSCustomObject]$hash )
     }
     End{ 
         $StopWatch.Stop()
         if ($MultipleTest){
             Write-Information "Total time $( $StopWatch.Elapsed )" -InformationAction Continue
+        }else{
+            Write-Information "Total time $( $StopWatch.Elapsed )"
         }
     }
 }
