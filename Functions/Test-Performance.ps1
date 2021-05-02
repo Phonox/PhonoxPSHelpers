@@ -218,7 +218,7 @@ name='test'
                     ScriptBlock = [scriptblock]::Create(  " (1..$repeat).Foreach{ $ScriptBlock }" )
                     Name = ".Foreach{}_$Name"
                 },[PSCustomObject]@{
-                    ScriptBlock = [scriptblock]::Create(  "for(`$ThisUniqueint=0;`$ThisUniqueint -le $repeat; `$ThisUniqueint++){ $ScriptBlock ; `$ThisUniqueint++} " )
+                    ScriptBlock = [scriptblock]::Create(  "for(`$ThisUniqueint=0;`$ThisUniqueint -le $repeat; `$ThisUniqueint++){ $ScriptBlock }" )
                     Name = "For_$Name"
                 },[PSCustomObject]@{
                     ScriptBlock = [scriptblock]::Create( "`$ThisUniqueint=0;while(`$ThisUniqueint -lt $repeat ){ $ScriptBlock ; `$ThisUniqueint++ }" )
