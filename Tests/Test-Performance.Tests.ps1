@@ -209,7 +209,7 @@ Describe 'repeaters' {
 
     Context 'SmokeTest Repeat MultipleTest' {
         It "Normal" {
-            $test = Test-Performance 'woop' -ScriptBlock $sb -MultipleTest -Repeat 3 6>$null
+            $test = Test-Performance 'woop' -ScriptBlock $sb -MultipleTest -Repeat $Repeat 6>$null
             ($test | Measure-Object).count |Should -BeExactly 7
             $test[0].Name |Should -BeExactly 'woop'
             $test[0].FullName |Should -Match 'woop'
